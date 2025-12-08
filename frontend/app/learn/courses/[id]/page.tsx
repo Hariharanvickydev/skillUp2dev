@@ -83,72 +83,68 @@ export default function CourseDetailPage() {
         if (!selectedTopic || !activeContent) return
 
         try {
-            const jsPDF = (await import('jspdf')).default
-
-            const pdf = new jsPDF('p', 'mm', 'a4')
-            const pageWidth = pdf.internal.pageSize.getWidth()
-            const pageHeight = pdf.internal.pageSize.getHeight()
-            const margin = 15
-            const maxWidth = pageWidth - (margin * 2)
-            let yPosition = margin
-
-            // Add title
-            pdf.setFontSize(18)
-            pdf.setFont('helvetica', 'bold')
-            const titleLines = pdf.splitTextToSize(selectedTopic.title, maxWidth)
-            pdf.text(titleLines, margin, yPosition)
-            yPosition += titleLines.length * 8 + 10
-
-            // Add course name
-            pdf.setFontSize(12)
-            pdf.setFont('helvetica', 'normal')
-            pdf.text(`Course: ${course.title}`, margin, yPosition)
-            yPosition += 15
-
-            // Add content
-            pdf.setFontSize(10)
-
-            // Convert markdown to plain text (simple approach)
-            const plainText = activeContent
-                .replace(/#{1,6}\s/g, '') // Remove headers
-                .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
-                .replace(/\*(.+?)\*/g, '$1') // Remove italic
-                .replace(/`(.+?)`/g, '$1') // Remove inline code
-                .replace(/```[\s\S]*?```/g, '[Code Block]') // Replace code blocks
-                .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Remove links
-                .replace(/^\s*[-*+]\s/gm, '• ') // Convert lists
-                .replace(/^\s*\d+\.\s/gm, '• ') // Convert numbered lists
-
-            const lines = plainText.split('\n')
-
-            for (const line of lines) {
-                if (!line.trim()) {
-                    yPosition += 5
-                    continue
-                }
-
-                const textLines = pdf.splitTextToSize(line, maxWidth)
-
-                for (const textLine of textLines) {
-                    // Check if we need a new page
-                    if (yPosition > pageHeight - margin) {
-                        pdf.addPage()
-                        yPosition = margin
-                    }
-
-                    pdf.text(textLine, margin, yPosition)
-                    yPosition += 6
-                }
+            // Use browser's native print dialog which handles all CSS properly
+            // Create a new window with just the content
+            const printWindow = window.open('', '_blank')
+            if (!printWindow) {
+                alert('Please allow popups to export PDF')
+                return
             }
 
-            // Clean filename
-            const filename = selectedTopic.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
-            pdf.save(`${filename}.pdf`)
+            const element = document.querySelector('.prose')
+            if (!element) {
+                alert('Content not found')
+                printWindow.close()
+                return
+            }
 
-            console.log('PDF generated successfully')
+            // Get all stylesheets
+            const styles = Array.from(document.styleSheets)
+                .map(styleSheet => {
+                    try {
+                        return Array.from(styleSheet.cssRules)
+                            .map(rule => rule.cssText)
+                            .join('\n')
+                    } catch (e) {
+                        return ''
+                    }
+                })
+                .join('\n')
+
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${selectedTopic.title}</title>
+                    <style>
+                        ${styles}
+                        @media print {
+                            body { margin: 20mm; }
+                            @page { size: A4; margin: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>${selectedTopic.title}</h1>
+                    <p><strong>Course:</strong> ${course.title}</p>
+                    <hr/>
+                    ${element.innerHTML}
+                </body>
+                </html>
+            `)
+            printWindow.document.close()
+
+            // Wait for content to load then print
+            setTimeout(() => {
+                printWindow.print()
+                // Close after printing (user can cancel)
+                setTimeout(() => printWindow.close(), 100)
+            }, 500)
+
+            console.log('Print dialog opened')
         } catch (error) {
-            console.error('Error generating PDF:', error)
-            alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            console.error('Error opening print dialog:', error)
+            alert(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
     }
 
