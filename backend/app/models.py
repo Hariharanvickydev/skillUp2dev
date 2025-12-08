@@ -67,15 +67,19 @@ class Exam(Base):
     
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     topic_id = Column(Uuid(as_uuid=True), ForeignKey("topics.id"), nullable=False)
+    created_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
     questions = Column(JSON, nullable=False)  # Array of {question, options[], correct_index, explanation}
     difficulty = Column(String, default="medium")  # easy, medium, hard
     duration_minutes = Column(Integer, default=30)
     passing_score = Column(Integer, default=70)  # percentage
     is_published = Column(Boolean, default=False)
+    is_public = Column(Boolean, default=True)  # Public for community sharing
+    num_attempts = Column(Integer, default=0)  # Track usage
     created_at = Column(DateTime, server_default=func.now())
     
     topic = relationship("Topic", back_populates="exams")
     attempts = relationship("ExamAttempt", back_populates="exam", cascade="all, delete-orphan")
+    creator = relationship("User")
 
 class ExamAttempt(Base):
     __tablename__ = "exam_attempts"

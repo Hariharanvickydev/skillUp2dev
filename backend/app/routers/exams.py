@@ -81,11 +81,13 @@ IMPORTANT: Return ONLY the JSON array, no markdown formatting, no extra text."""
         # Create exam in database
         exam = models.Exam(
             topic_id=topic_id,
+            created_by_user_id=current_user.id,
             questions=questions,
             difficulty=request.difficulty,
             duration_minutes=request.num_questions * 2,  # 2 minutes per question
             passing_score=70,
-            is_published=True  # Practice exams are always available
+            is_published=True,  # Practice exams are always available
+            is_public=True  # Share with community
         )
         
         db.add(exam)
