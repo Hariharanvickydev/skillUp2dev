@@ -11,10 +11,11 @@ router = APIRouter(prefix="/topics", tags=["topics"])
 @router.post("/{topic_id}/generate-content")
 def generate_content(
     topic_id: UUID,
+    request_body: dict = {},
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
-    """Generate AI content for a topic"""
+    """Generate AI content for a topic with optional feedback"""
     topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
@@ -32,9 +33,10 @@ def generate_content(
     # 1. Define the model
     model = genai.GenerativeModel('gemini-pro')
 
-    # 2. Prepare the prompt
-    # Example prompt - this can be made more sophisticated
-    prompt = f"""
+    # 2. Prepare the prompt with optional feedback
+    feedback = request_body.get('feedback') if request_body else None
+    
+    base_prompt = f"""
     Generate comprehensive and engaging content for a topic titled "{topic.title}".
     The topic belongs to a course titled "{course.title}" which is described as: "{course.description}".
 
@@ -42,7 +44,21 @@ def generate_content(
     examples, and practical applications related to "{topic.title}".
     Ensure the content is well-structured, easy to understand, and informative.
     Aim for a length of approximately 500-800 words.
+    Format the content in markdown.
     """
+    
+    if feedback:
+        prompt = f"""{base_prompt}
+
+IMPORTANT USER FEEDBACK:
+{feedback}
+
+Please address this feedback and decide whether to:
+- Replace the content entirely if major changes are needed
+- Append/modify specific sections if minor improvements are needed
+"""
+    else:
+        prompt = base_prompt
 
     # 3. Generate content
     try:
