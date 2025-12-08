@@ -66,6 +66,11 @@ Please address this feedback and decide whether to:
         content_text = response.text
     except Exception as e:
         error_msg = str(e)
+        print(f"ERROR in generate_content: {error_msg}")  # Debug logging
+        print(f"Exception type: {type(e)}")  # Debug logging
+        import traceback
+        traceback.print_exc()  # Print full traceback
+        
         # Check for quota/rate limit errors
         if "429" in error_msg or "quota" in error_msg.lower() or "rate limit" in error_msg.lower():
             raise HTTPException(
