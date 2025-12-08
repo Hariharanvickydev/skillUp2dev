@@ -84,17 +84,9 @@ export default function CourseDetailPage() {
 
         try {
             // Use browser's native print dialog which handles all CSS properly
-            // Create a new window with just the content
-            const printWindow = window.open('', '_blank')
-            if (!printWindow) {
-                alert('Please allow popups to export PDF')
-                return
-            }
-
             const element = document.querySelector('.prose')
             if (!element) {
                 alert('Content not found')
-                printWindow.close()
                 return
             }
 
@@ -111,35 +103,91 @@ export default function CourseDetailPage() {
                 })
                 .join('\n')
 
-            printWindow.document.write(`
+            const htmlContent = `
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>${selectedTopic.title}</title>
+                    <meta charset="UTF-8">
+                    <title>${selectedTopic.title} - SkillUp2Dev</title>
                     <style>
                         ${styles}
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            line-height: 1.6;
+                            color: #1e293b;
+                            max-width: 800px;
+                            margin: 0 auto;
+                            padding: 40px 20px;
+                        }
+                        .header {
+                            margin-bottom: 40px;
+                            padding-bottom: 20px;
+                            border-bottom: 2px solid #e2e8f0;
+                        }
+                        .header h1 {
+                            margin: 0 0 10px 0;
+                            color: #0f172a;
+                            font-size: 32px;
+                        }
+                        .meta {
+                            color: #64748b;
+                            font-size: 14px;
+                            margin: 5px 0;
+                        }
+                        .footer {
+                            margin-top: 60px;
+                            padding-top: 20px;
+                            border-top: 1px solid #e2e8f0;
+                            text-align: center;
+                            color: #64748b;
+                            font-size: 12px;
+                        }
                         @media print {
-                            body { margin: 20mm; }
-                            @page { size: A4; margin: 0; }
+                            body { 
+                                margin: 20mm;
+                                padding: 0;
+                            }
+                            @page { 
+                                size: A4;
+                                margin: 0;
+                            }
                         }
                     </style>
                 </head>
                 <body>
-                    <h1>${selectedTopic.title}</h1>
-                    <p><strong>Course:</strong> ${course.title}</p>
-                    <hr/>
-                    ${element.innerHTML}
+                    <div class="header">
+                        <h1>${selectedTopic.title}</h1>
+                        <div class="meta"><strong>Course:</strong> ${course.title}</div>
+                        <div class="meta"><strong>Author:</strong> SkillUp2Dev</div>
+                        <div class="meta"><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
+                    </div>
+                    <div class="content">
+                        ${element.innerHTML}
+                    </div>
+                    <div class="footer">
+                        <p>© ${new Date().getFullYear()} SkillUp2Dev - All Rights Reserved</p>
+                    </div>
                 </body>
                 </html>
-            `)
-            printWindow.document.close()
+            `
 
-            // Wait for content to load then print
-            setTimeout(() => {
-                printWindow.print()
-                // Close after printing (user can cancel)
-                setTimeout(() => printWindow.close(), 100)
-            }, 500)
+            // Create blob and open in new tab
+            const blob = new Blob([htmlContent], { type: 'text/html' })
+            const url = URL.createObjectURL(blob)
+            const printWindow = window.open(url, '_blank')
+
+            if (!printWindow) {
+                alert('Please allow popups to export PDF')
+                URL.revokeObjectURL(url)
+                return
+            }
+
+            // Wait for content to load, then trigger print
+            printWindow.onload = () => {
+                setTimeout(() => {
+                    printWindow.print()
+                }, 500)
+            }
 
             console.log('Print dialog opened')
         } catch (error) {
