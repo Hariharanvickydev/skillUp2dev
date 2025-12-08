@@ -398,7 +398,27 @@ export default function CourseDetailPage() {
                                                             {children}
                                                         </code>
                                                     )
-                                                }
+                                                },
+                                                table: ({ node, ...props }: any) => (
+                                                    <div className="my-6 overflow-x-auto">
+                                                        <table className="min-w-full divide-y divide-slate-300 border border-slate-300" {...props} />
+                                                    </div>
+                                                ),
+                                                thead: ({ node, ...props }: any) => (
+                                                    <thead className="bg-slate-100" {...props} />
+                                                ),
+                                                tbody: ({ node, ...props }: any) => (
+                                                    <tbody className="divide-y divide-slate-200 bg-white" {...props} />
+                                                ),
+                                                tr: ({ node, ...props }: any) => (
+                                                    <tr className="hover:bg-slate-50" {...props} />
+                                                ),
+                                                th: ({ node, ...props }: any) => (
+                                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 border-r border-slate-300 last:border-r-0" {...props} />
+                                                ),
+                                                td: ({ node, ...props }: any) => (
+                                                    <td className="px-4 py-3 text-sm text-slate-700 border-r border-slate-200 last:border-r-0" {...props} />
+                                                )
                                             }}
                                         >
                                             {activeContent}
