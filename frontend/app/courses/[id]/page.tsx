@@ -587,15 +587,18 @@ export default function CourseDetailPage() {
                 <AlertDialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Regenerate All Topics?</AlertDialogTitle>
+                            <AlertDialogTitle>{topics.length === 0 ? 'Generate Topics?' : 'Regenerate All Topics?'}</AlertDialogTitle>
                             <AlertDialogDescription>
-                                This will delete all existing topics and generate new ones using AI. This action cannot be undone.
+                                {topics.length === 0
+                                    ? 'AI will generate a comprehensive course outline with topics and sub-topics based on your course title and description.'
+                                    : 'This will delete all existing topics and generate new ones using AI. This action cannot be undone.'
+                                }
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction onClick={handleRegenerateTopics} className="bg-indigo-600 hover:bg-indigo-700">
-                                Regenerate
+                                {topics.length === 0 ? 'Generate' : 'Regenerate'}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
