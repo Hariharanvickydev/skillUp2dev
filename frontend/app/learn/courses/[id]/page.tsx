@@ -471,50 +471,14 @@ export default function CourseDetailPage() {
                                     <CheckCircle className="h-4 w-4" />
                                     Content Approved
                                 </span>
-                                <div className="flex gap-2 w-full sm:w-auto">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleExportPDF}
-                                        className="flex-1 sm:flex-none"
-                                    >
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Export PDF
-                                    </Button>
-                                    <div className="relative group flex-1 sm:flex-none">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full"
-                                        >
-                                            <Share2 className="mr-2 h-4 w-4" />
-                                            Share
-                                        </Button>
-                                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-white border rounded-lg shadow-lg p-2 min-w-[160px] z-50">
-                                            <button
-                                                onClick={handleShareEmail}
-                                                className="w-full text-left px-3 py-2 hover:bg-slate-100 rounded flex items-center gap-2 text-sm"
-                                            >
-                                                <Mail className="h-4 w-4" />
-                                                Email
-                                            </button>
-                                            <button
-                                                onClick={handleShareWhatsApp}
-                                                className="w-full text-left px-3 py-2 hover:bg-slate-100 rounded flex items-center gap-2 text-sm"
-                                            >
-                                                <Share2 className="h-4 w-4" />
-                                                WhatsApp
-                                            </button>
-                                            <button
-                                                onClick={handleCopyLink}
-                                                className="w-full text-left px-3 py-2 hover:bg-slate-100 rounded flex items-center gap-2 text-sm"
-                                            >
-                                                <Copy className="h-4 w-4" />
-                                                Copy Link
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleExportPDF}
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export PDF
+                                </Button>
                             </div>
                         )}
                     </DialogContent>
