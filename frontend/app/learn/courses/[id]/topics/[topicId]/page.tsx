@@ -177,14 +177,20 @@ export default function TopicContentPage() {
                 })
             })
 
-            if (!response.ok) throw new Error('Failed to generate exam')
+            console.log('Response status:', response.status)
+            const responseText = await response.text()
+            console.log('Response body:', responseText)
 
-            const exam = await response.json()
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status} - ${responseText}`)
+            }
+
+            const exam = JSON.parse(responseText)
             // Navigate to exam page
             router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${exam.id}`)
         } catch (error) {
             console.error('Error generating exam:', error)
-            alert('Failed to generate practice exam')
+            alert(`Failed to generate practice exam: ${error instanceof Error ? error.message : 'Unknown error'}`)
         } finally {
             setGeneratingExam(false)
         }
