@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .routers import courses, auth, exams
 from .database import engine, Base
-from .routers import courses, topics, auth
 
-# Create Database Tables
+# Create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SkillUp2Dev API")
 
-# Configure CORS for Frontend
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -17,8 +17,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
 app.include_router(auth.router)
 app.include_router(courses.router)
+app.include_router(exams.router)
 app.include_router(topics.router)
 
 @app.get("/")
