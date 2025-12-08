@@ -418,7 +418,11 @@ export default function CourseDetailPage() {
                                                             <p className="text-xs text-slate-500 mt-1">{topic.description}</p>
                                                         </div>
                                                         <div className="flex gap-2">
-                                                            <Button variant="outline" size="sm" onClick={() => handleViewContent(topic)}>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => router.push(`/learn/courses/${id}/topics/${topic.id}`)}
+                                                            >
                                                                 <FileText className="mr-2 h-4 w-4" />
                                                                 View Content
                                                             </Button>
