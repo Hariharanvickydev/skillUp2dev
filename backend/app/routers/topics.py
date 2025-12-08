@@ -31,7 +31,7 @@ def generate_content(
     genai.configure(api_key=api_key)
 
     # 1. Define the model
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     # 2. Prepare the prompt with optional feedback
     feedback = request_body.get('feedback') if request_body else None
