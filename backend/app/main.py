@@ -21,7 +21,6 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(courses.router)
 app.include_router(exams.router)
-app.include_router(topics.router)
 
 @app.get("/")
 def read_root():
