@@ -1,0 +1,26 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from .database import engine, Base
+from .routers import courses, topics, auth
+
+# Create Database Tables
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="SkillUp2Dev API")
+
+# Configure CORS for Frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(courses.router)
+app.include_router(topics.router)
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to SkillUp2Dev API"}
