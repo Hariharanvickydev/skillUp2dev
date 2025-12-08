@@ -233,18 +233,18 @@ export default function CourseDetailPage() {
     if (!course) return <div className="p-24">Course not found</div>
 
     return (
-        <main className="flex min-h-screen flex-col p-24 bg-slate-50">
+        <main className="flex min-h-screen flex-col p-4 sm:p-8 md:p-12 lg:p-24 bg-slate-50">
             <div className="max-w-6xl mx-auto w-full">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+                    <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
                         <Button variant="ghost" size="icon" onClick={() => router.push('/learn')}>
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-bold text-slate-900">{course.title}</h1>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-1">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 break-words">{course.title}</h1>
                             {course.status === 'PUBLISHED' && (
-                                <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full flex items-center gap-1">
+                                <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full flex items-center gap-1 w-fit">
                                     <CheckCircle className="h-4 w-4" />
                                     Published
                                 </span>
@@ -306,9 +306,9 @@ export default function CourseDetailPage() {
 
                 {/* Content Dialog */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
-                        <DialogHeader className="px-8 pt-8 pb-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
-                            <DialogTitle className="text-2xl font-bold text-slate-900">{selectedTopic?.title}</DialogTitle>
+                    <DialogContent className="max-w-5xl w-[95vw] sm:w-full h-[95vh] sm:h-[90vh] flex flex-col p-0">
+                        <DialogHeader className="px-4 sm:px-8 pt-4 sm:pt-8 pb-3 sm:pb-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
+                            <DialogTitle className="text-xl sm:text-2xl font-bold text-slate-900 pr-8">{selectedTopic?.title}</DialogTitle>
                         </DialogHeader>
 
                         <div className="flex-1 overflow-y-auto">
@@ -317,8 +317,8 @@ export default function CourseDetailPage() {
                                     <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
                                 </div>
                             ) : activeContent ? (
-                                <div className="px-8 py-8">
-                                    <article className="prose prose-slate prose-lg max-w-none">
+                                <div className="px-4 sm:px-8 py-4 sm:py-8">
+                                    <article className="prose prose-slate prose-sm sm:prose-lg max-w-none">
                                         <Markdown
                                             remarkPlugins={[remarkGfm]}
                                             components={{
