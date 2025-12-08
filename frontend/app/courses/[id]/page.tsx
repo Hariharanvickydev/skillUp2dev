@@ -232,7 +232,7 @@ export default function CourseDetailPage() {
                 {topics.length === 0 && (
                     <div className="text-center py-12">
                         <p className="text-slate-500 mb-4">No topics yet</p>
-                        <Button onClick={() => setIsRegenerateDialogOpen(true)} disabled={generating}>
+                        <Button onClick={handleRegenerateTopics} disabled={generating}>
                             {generating ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
