@@ -40,6 +40,8 @@ export default function CourseDetailPage() {
     const [topicToDelete, setTopicToDelete] = useState<any>(null)
     const [newTopicData, setNewTopicData] = useState({ title: "", description: "", order: topics.length + 1 })
     const [parentTopicForSubtopic, setParentTopicForSubtopic] = useState<any>(null)
+    const [isRegenerateFeedbackOpen, setIsRegenerateFeedbackOpen] = useState(false)
+    const [regenerateFeedback, setRegenerateFeedback] = useState("")
 
     const fetchCourse = async () => {
         try {
