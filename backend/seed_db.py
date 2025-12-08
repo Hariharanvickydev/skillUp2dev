@@ -16,42 +16,58 @@ def seed_database():
     db = SessionLocal()
     
     try:
-        # 1. Create Admin User
-        print("Creating admin user...")
-        admin_user = models.User(
-            email="admin@skillup2dev.com",
-            password_hash=auth.hash_password("admin123"),
-            full_name="Admin User",
-            role="ADMIN"
-        )
-        db.add(admin_user)
-        db.commit()
-        db.refresh(admin_user)
-        print(f"✅ Admin user created: {admin_user.email}")
+        # 1. Create Admin User (if not exists)
+        print("Checking admin user...")
+        admin_user = db.query(models.User).filter(models.User.email == "admin@skillup2dev.com").first()
+        if not admin_user:
+            admin_user = models.User(
+                email="admin@skillup2dev.com",
+                password_hash=auth.hash_password("admin123"),
+                full_name="Admin User",
+                role="ADMIN"
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+            print(f"✅ Admin user created: {admin_user.email}")
+        else:
+            print(f"ℹ️  Admin user already exists: {admin_user.email}")
         
-        # 2. Create Consumer User
-        print("Creating consumer user...")
-        consumer_user = models.User(
-            email="student@skillup2dev.com",
-            password_hash=auth.hash_password("student123"),
-            full_name="Student User",
-            role="CONSUMER"
-        )
-        db.add(consumer_user)
-        db.commit()
-        db.refresh(consumer_user)
-        print(f"✅ Consumer user created: {consumer_user.email}")
+        # 2. Create Consumer User (if not exists)
+        print("Checking consumer user...")
+        consumer_user = db.query(models.User).filter(models.User.email == "student@skillup2dev.com").first()
+        if not consumer_user:
+            consumer_user = models.User(
+                email="student@skillup2dev.com",
+                password_hash=auth.hash_password("student123"),
+                full_name="Student User",
+                role="CONSUMER"
+            )
+            db.add(consumer_user)
+            db.commit()
+            db.refresh(consumer_user)
+            print(f"✅ Consumer user created: {consumer_user.email}")
+        else:
+            print(f"ℹ️  Consumer user already exists: {consumer_user.email}")
         
-        # 3. Create Python Course
-        print("\nCreating Python course...")
-        python_course = models.Course(
-            title="Python Programming Fundamentals",
-            description="Master Python from basics to advanced concepts. Learn variables, functions, OOP, and more.",
-            status="PUBLISHED"
-        )
-        db.add(python_course)
-        db.commit()
-        db.refresh(python_course)
+        # 3. Create Python Course (if not exists)
+        print("\nChecking Python course...")
+        python_course = db.query(models.Course).filter(
+            models.Course.title == "Python Programming Fundamentals"
+        ).first()
+        
+        if not python_course:
+            python_course = models.Course(
+                title="Python Programming Fundamentals",
+                description="Master Python from basics to advanced concepts. Learn variables, functions, OOP, and more.",
+                status="PUBLISHED"
+            )
+            db.add(python_course)
+            db.commit()
+            db.refresh(python_course)
+            print(f"✅ Course created: {python_course.title}")
+        else:
+            print(f"ℹ️  Course already exists: {python_course.title}")
         print(f"✅ Course created: {python_course.title}")
         
         # 4. Create Topics with Content
@@ -555,14 +571,6 @@ def calculate_area(length, width):
             }
         ]
         
-        print("\nCreating topics and content...")
-        for idx, topic_data in enumerate(topics_data, 1):
-            # Create topic
-            topic = models.Topic(
-                course_id=python_course.id,
-                title=topic_data["title"],
-                description=topic_data["description"],
-                order=idx,
                 status="APPROVED"
             )
             db.add(topic)
@@ -580,9 +588,14 @@ def calculate_area(length, width):
             
             print(f"  ✅ Topic {idx}: {topic.title}")
         
-        print(f"\n🎉 Database seeded successfully!")
+        # Get final counts
+        total_topics = db.query(models.Topic).filter(
+            models.Topic.course_id == python_course.id
+        ).count()
+        
+        print(f"\n🎉 Database seeding complete!")
         print(f"\n📚 Course: {python_course.title}")
-        print(f"📝 Topics: {len(topics_data)}")
+        print(f"📝 Topics: {total_topics}")
         print(f"\n👤 Admin Login:")
         print(f"   Email: admin@skillup2dev.com")
         print(f"   Password: admin123")
