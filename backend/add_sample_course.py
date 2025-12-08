@@ -192,7 +192,7 @@ Now that you have React set up, you're ready to:
 cursor.execute("""
     INSERT INTO topic_contents (id, topic_id, content, is_approved, created_at, updated_at)
     VALUES (?, ?, ?, 1, ?, ?)
-""", (str(uuid.uuid4()), topic1_2_id, content1_2, datetime.utcnow(), datetime.utcnow()))
+""", (uuid.uuid4().hex, topic1_2_id, content1_2, datetime.utcnow(), datetime.utcnow()))
 
 # Commit and close
 conn.commit()
