@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from uuid import UUID
 from .. import crud, models, schemas, database, auth
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/topics", tags=["topics"])
 @router.post("/{topic_id}/generate-content")
 def generate_content(
     topic_id: UUID,
-    request_body: dict = {},
+    request_body: dict = Body(default={}),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
