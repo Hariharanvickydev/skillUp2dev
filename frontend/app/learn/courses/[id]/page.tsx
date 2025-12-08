@@ -87,29 +87,57 @@ export default function CourseDetailPage() {
             const html2canvas = (await import('html2canvas')).default
 
             const element = document.querySelector('.prose') as HTMLElement
-            if (!element) return
+            if (!element) {
+                alert('Content not found. Please try again.')
+                return
+            }
+
+            // Show loading state
+            const originalText = element.textContent
+            console.log('Generating PDF...')
 
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
-                logging: false
+                logging: false,
+                backgroundColor: '#ffffff'
             })
 
             const imgData = canvas.toDataURL('image/png')
             const pdf = new jsPDF('p', 'mm', 'a4')
+
             const pdfWidth = pdf.internal.pageSize.getWidth()
             const pdfHeight = pdf.internal.pageSize.getHeight()
             const imgWidth = canvas.width
             const imgHeight = canvas.height
-            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-            const imgX = (pdfWidth - imgWidth * ratio) / 2
-            const imgY = 10
 
-            pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
-            pdf.save(`${selectedTopic.title}.pdf`)
+            // Calculate dimensions to fit page width
+            const ratio = pdfWidth / imgWidth
+            const scaledHeight = imgHeight * ratio
+
+            let heightLeft = scaledHeight
+            let position = 0
+
+            // Add first page
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight)
+            heightLeft -= pdfHeight
+
+            // Add additional pages if content is longer than one page
+            while (heightLeft > 0) {
+                position = heightLeft - scaledHeight
+                pdf.addPage()
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight)
+                heightLeft -= pdfHeight
+            }
+
+            // Clean filename
+            const filename = selectedTopic.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+            pdf.save(`${filename}.pdf`)
+
+            console.log('PDF generated successfully')
         } catch (error) {
             console.error('Error generating PDF:', error)
-            alert('Failed to generate PDF')
+            alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
     }
 
