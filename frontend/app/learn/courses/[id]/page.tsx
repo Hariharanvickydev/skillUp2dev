@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, Play, CheckCircle, Loader2, FileText } from "lucide-react"
+import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, Play, CheckCircle, Loader2, FileText, Download, Share2, Mail, Copy } from "lucide-react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -76,6 +76,60 @@ export default function CourseDetailPage() {
             setActiveContent("")
         } finally {
             setContentLoading(false)
+        }
+    }
+
+    const handleExportPDF = async () => {
+        if (!selectedTopic || !activeContent) return
+
+        try {
+            const jsPDF = (await import('jspdf')).default
+            const html2canvas = (await import('html2canvas')).default
+
+            const element = document.querySelector('.prose') as HTMLElement
+            if (!element) return
+
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false
+            })
+
+            const imgData = canvas.toDataURL('image/png')
+            const pdf = new jsPDF('p', 'mm', 'a4')
+            const pdfWidth = pdf.internal.pageSize.getWidth()
+            const pdfHeight = pdf.internal.pageSize.getHeight()
+            const imgWidth = canvas.width
+            const imgHeight = canvas.height
+            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
+            const imgX = (pdfWidth - imgWidth * ratio) / 2
+            const imgY = 10
+
+            pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
+            pdf.save(`${selectedTopic.title}.pdf`)
+        } catch (error) {
+            console.error('Error generating PDF:', error)
+            alert('Failed to generate PDF')
+        }
+    }
+
+    const handleShareEmail = () => {
+        const subject = encodeURIComponent(`Check out: ${selectedTopic?.title}`)
+        const body = encodeURIComponent(`I found this interesting topic: ${selectedTopic?.title}\n\n${window.location.href}`)
+        window.location.href = `mailto:?subject=${subject}&body=${body}`
+    }
+
+    const handleShareWhatsApp = () => {
+        const text = encodeURIComponent(`Check out this topic: ${selectedTopic?.title}\n${window.location.href}`)
+        window.open(`https://wa.me/?text=${text}`, '_blank')
+    }
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(window.location.href)
+            alert('Link copied to clipboard!')
+        } catch (error) {
+            console.error('Error copying link:', error)
         }
     }
 
@@ -411,12 +465,56 @@ export default function CourseDetailPage() {
                             )}
                         </div>
 
-                        {activeContent && selectedTopic?.status === 'APPROVED' && (
-                            <div className="border-t px-8 py-4 bg-slate-50 flex justify-center items-center">
+                        {activeContent && (
+                            <div className="border-t px-4 sm:px-8 py-3 sm:py-4 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-3">
                                 <span className="flex items-center gap-2 text-green-600 text-sm">
                                     <CheckCircle className="h-4 w-4" />
                                     Content Approved
                                 </span>
+                                <div className="flex gap-2 w-full sm:w-auto">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleExportPDF}
+                                        className="flex-1 sm:flex-none"
+                                    >
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export PDF
+                                    </Button>
+                                    <div className="relative group flex-1 sm:flex-none">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                        >
+                                            <Share2 className="mr-2 h-4 w-4" />
+                                            Share
+                                        </Button>
+                                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-white border rounded-lg shadow-lg p-2 min-w-[160px] z-50">
+                                            <button
+                                                onClick={handleShareEmail}
+                                                className="w-full text-left px-3 py-2 hover:bg-slate-100 rounded flex items-center gap-2 text-sm"
+                                            >
+                                                <Mail className="h-4 w-4" />
+                                                Email
+                                            </button>
+                                            <button
+                                                onClick={handleShareWhatsApp}
+                                                className="w-full text-left px-3 py-2 hover:bg-slate-100 rounded flex items-center gap-2 text-sm"
+                                            >
+                                                <Share2 className="h-4 w-4" />
+                                                WhatsApp
+                                            </button>
+                                            <button
+                                                onClick={handleCopyLink}
+                                                className="w-full text-left px-3 py-2 hover:bg-slate-100 rounded flex items-center gap-2 text-sm"
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                                Copy Link
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </DialogContent>
