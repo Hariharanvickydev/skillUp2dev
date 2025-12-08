@@ -409,7 +409,7 @@ export default function CourseDetailPage() {
                                 <div className="flex flex-col items-center justify-center h-full px-8 text-center">
                                     <FileText className="h-16 w-16 text-slate-300 mb-4" />
                                     <p className="text-slate-500 mb-6">No content available yet</p>
-                                    <Button onClick={handleGenerateContent} disabled={generating}>
+                                    <Button onClick={() => handleGenerateContent()} disabled={generating}>
                                         {generating ? (
                                             <>
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
