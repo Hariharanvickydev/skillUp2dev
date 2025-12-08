@@ -34,7 +34,7 @@ async def generate_practice_exam(
         raise HTTPException(status_code=404, detail="No content available for this topic")
     
     # Generate questions using AI
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-flash-latest')
     
     prompt = f"""Generate {request.num_questions} multiple-choice questions for the following topic.
 
