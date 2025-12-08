@@ -92,16 +92,48 @@ export default function CourseDetailPage() {
                 return
             }
 
-            // Show loading state
-            const originalText = element.textContent
             console.log('Generating PDF...')
 
-            const canvas = await html2canvas(element, {
+            // Clone element to avoid modifying the original
+            const clone = element.cloneNode(true) as HTMLElement
+
+            // Remove problematic CSS that html2canvas can't handle
+            const style = document.createElement('style')
+            style.textContent = `
+                * {
+                    color: rgb(0, 0, 0) !important;
+                    background-color: rgb(255, 255, 255) !important;
+                }
+                code {
+                    background-color: rgb(240, 240, 240) !important;
+                    color: rgb(0, 0, 0) !important;
+                }
+            `
+            clone.appendChild(style)
+
+            // Temporarily add clone to document
+            clone.style.position = 'absolute'
+            clone.style.left = '-9999px'
+            document.body.appendChild(clone)
+
+            const canvas = await html2canvas(clone, {
                 scale: 2,
                 useCORS: true,
                 logging: false,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    // Remove any lab() color functions
+                    const allElements = clonedDoc.querySelectorAll('*')
+                    allElements.forEach((el: any) => {
+                        if (el.style) {
+                            el.style.color = 'rgb(0, 0, 0)'
+                        }
+                    })
+                }
             })
+
+            // Remove clone
+            document.body.removeChild(clone)
 
             const imgData = canvas.toDataURL('image/png')
             const pdf = new jsPDF('p', 'mm', 'a4')
