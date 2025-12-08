@@ -579,10 +579,26 @@ def calculate_area(length, width):
             print(f"\nℹ️  Topics already exist for this course ({existing_topics} topics)")
         else:
             print("\nCreating topics and content...")
+            
+            # Create parent topic
+            parent_topic = models.Topic(
+                course_id=python_course.id,
+                title="Python Fundamentals",
+                description="Core Python programming concepts",
+                order=1,
+                status="APPROVED"
+            )
+            db.add(parent_topic)
+            db.commit()
+            db.refresh(parent_topic)
+            print(f"  ✅ Parent Topic: {parent_topic.title}")
+            
+            # Create subtopics with content
             for idx, topic_data in enumerate(topics_data, 1):
-                # Create topic
+                # Create subtopic
                 topic = models.Topic(
                     course_id=python_course.id,
+                    parent_topic_id=parent_topic.id,
                     title=topic_data["title"],
                     description=topic_data["description"],
                     order=idx,
@@ -601,7 +617,7 @@ def calculate_area(length, width):
                 db.add(content)
                 db.commit()
                 
-                print(f"  ✅ Topic {idx}: {topic.title}")
+                print(f"    ✅ Subtopic {idx}: {topic.title}")
         
         # Get final counts
         total_topics = db.query(models.Topic).filter(
