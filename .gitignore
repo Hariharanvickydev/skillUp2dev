@@ -44,3 +44,4 @@ yarn-error.log*
 # Backups
 *.backup
 *.bak
+push-to-github.sh
