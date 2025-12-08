@@ -369,7 +369,11 @@ export default function CourseDetailPage() {
                                                             <Button variant="ghost" size="icon" onClick={() => { setTopicToDelete(topic); setIsDeleteDialogOpen(true); }}>
                                                                 <Trash2 className="h-4 w-4 text-red-500" />
                                                             </Button>
-                                                            <Button variant="outline" size="sm" onClick={() => handleViewContent(topic)}>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => router.push(`/courses/${id}/topics/${topic.id}`)}
+                                                            >
                                                                 <FileText className="mr-2 h-4 w-4" />
                                                                 {topic.status === 'APPROVED' ? "Review" : "Generate"}
                                                             </Button>
