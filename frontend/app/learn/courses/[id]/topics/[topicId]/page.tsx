@@ -8,7 +8,6 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { ExamLibraryDialog } from '@/components/ExamLibraryDialog'
 
 export default function TopicContentPage() {
     const params = useParams()
@@ -20,7 +19,6 @@ export default function TopicContentPage() {
     const [course, setCourse] = useState<any>(null)
     const [content, setContent] = useState<string>('')
     const [loading, setLoading] = useState(true)
-    const [examLibraryOpen, setExamLibraryOpen] = useState(false)
 
     useEffect(() => {
         fetchData()
@@ -184,7 +182,7 @@ export default function TopicContentPage() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setExamLibraryOpen(true)}
+                            onClick={() => router.push(`/learn/courses/${courseId}/topics/${topicId}/exams`)}
                             disabled={!content}
                         >
                             <Brain className="mr-2 h-4 w-4" />
@@ -278,14 +276,6 @@ export default function TopicContentPage() {
                     </div>
                 )}
             </div>
-
-            {/* Exam Library Dialog */}
-            <ExamLibraryDialog
-                open={examLibraryOpen}
-                onOpenChange={setExamLibraryOpen}
-                topicId={topicId}
-                courseId={courseId}
-            />
         </main>
     )
 }
