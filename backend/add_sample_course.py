@@ -6,8 +6,8 @@ import uuid
 conn = sqlite3.connect('skillup2dev.db')
 cursor = conn.cursor()
 
-# Create a sample course
-course_id = str(uuid.uuid4())
+# Create a sample course (UUID without dashes - 32 chars)
+course_id = uuid.uuid4().hex
 course_title = "React Fundamentals"
 course_description = "Learn the basics of React including components, props, state, and hooks"
 
@@ -84,10 +84,10 @@ function Welcome(props) {
 cursor.execute("""
     INSERT INTO topic_contents (id, topic_id, content, is_approved, created_at, updated_at)
     VALUES (?, ?, ?, 1, ?, ?)
-""", (str(uuid.uuid4()), topic1_1_id, content1_1, datetime.utcnow(), datetime.utcnow()))
+""", (uuid.uuid4().hex, topic1_1_id, content1_1, datetime.utcnow(), datetime.utcnow()))
 
 # Create Topic 1.2
-topic1_2_id = str(uuid.uuid4())
+topic1_2_id = uuid.uuid4().hex
 cursor.execute("""
     INSERT INTO topics (id, course_id, title, description, "order", parent_topic_id, status, created_at)
     VALUES (?, ?, ?, ?, 2, ?, 'APPROVED', ?)
