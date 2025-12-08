@@ -378,15 +378,7 @@ export default function CourseDetailPage() {
                         <Button variant="ghost" size="icon" onClick={() => router.push('/learn')}>
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-1">
-                            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 break-words">{course.title}</h1>
-                            {course.status === 'PUBLISHED' && (
-                                <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full flex items-center gap-1 w-fit">
-                                    <CheckCircle className="h-4 w-4" />
-                                    Published
-                                </span>
-                            )}
-                        </div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 break-words">{course.title}</h1>
                     </div>
                 </div>
 
@@ -549,11 +541,7 @@ export default function CourseDetailPage() {
                         </div>
 
                         {activeContent && (
-                            <div className="border-t px-4 sm:px-8 py-3 sm:py-4 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-3">
-                                <span className="flex items-center gap-2 text-green-600 text-sm">
-                                    <CheckCircle className="h-4 w-4" />
-                                    Content Approved
-                                </span>
+                            <div className="border-t px-4 sm:px-8 py-3 sm:py-4 bg-slate-50 flex justify-end items-center">
                                 <Button
                                     variant="outline"
                                     size="sm"
