@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Download, Loader2 } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, Brain } from 'lucide-react'
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -19,6 +19,7 @@ export default function TopicContentPage() {
     const [course, setCourse] = useState<any>(null)
     const [content, setContent] = useState<string>('')
     const [loading, setLoading] = useState(true)
+    const [generatingExam, setGeneratingExam] = useState(false)
 
     useEffect(() => {
         fetchData()
@@ -161,6 +162,34 @@ export default function TopicContentPage() {
         }
     }
 
+    const handleGeneratePracticeExam = async () => {
+        setGeneratingExam(true)
+        try {
+            const response = await fetch(`http://localhost:8000/exams/topics/${topicId}/generate-practice-exam`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    difficulty: 'medium',
+                    num_questions: 10
+                })
+            })
+
+            if (!response.ok) throw new Error('Failed to generate exam')
+
+            const exam = await response.json()
+            // Navigate to exam page
+            router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${exam.id}`)
+        } catch (error) {
+            console.error('Error generating exam:', error)
+            alert('Failed to generate practice exam')
+        } finally {
+            setGeneratingExam(false)
+        }
+    }
+
     if (loading) return <div className="p-24">Loading...</div>
     if (!topic || !course) return <div className="p-24">Topic not found</div>
 
@@ -178,10 +207,25 @@ export default function TopicContentPage() {
                             <p className="text-sm text-slate-500">{course.title}</p>
                         </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                        <Download className="mr-2 h-4 w-4" />
-                        <span className="hidden sm:inline">Export PDF</span>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={handleGeneratePracticeExam} disabled={generatingExam || !content}>
+                            {generatingExam ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Brain className="mr-2 h-4 w-4" />
+                                    <span className="hidden sm:inline">Practice Exam</span>
+                                </>
+                            )}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                            <Download className="mr-2 h-4 w-4" />
+                            <span className="hidden sm:inline">Export PDF</span>
+                        </Button>
+                    </div>
                 </div>
             </header>
 
