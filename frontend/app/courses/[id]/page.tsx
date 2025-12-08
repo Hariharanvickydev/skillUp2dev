@@ -438,12 +438,22 @@ export default function CourseDetailPage() {
                                         <span className="text-amber-600">Pending Approval</span>
                                     )}
                                 </div>
-                                {selectedTopic?.status !== 'APPROVED' && (
-                                    <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
-                                        <CheckCircle className="mr-2 h-4 w-4" />
-                                        Approve Content
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setIsRegenerateFeedbackOpen(true)}
+                                        disabled={generating}
+                                    >
+                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                        Regenerate
                                     </Button>
-                                )}
+                                    {selectedTopic?.status !== 'APPROVED' && (
+                                        <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Approve Content
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </DialogContent>
