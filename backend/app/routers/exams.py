@@ -8,7 +8,7 @@ from uuid import UUID
 
 from ..database import get_db
 from .. import models, schemas
-from .auth import get_current_user
+from .. import auth
 
 router = APIRouter(prefix="/exams", tags=["exams"])
 
@@ -20,7 +20,7 @@ async def generate_practice_exam(
     topic_id: UUID,
     request: schemas.ExamGenerateRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Generate a practice exam for a topic using AI"""
     
@@ -105,7 +105,7 @@ async def submit_practice_exam(
     exam_id: UUID,
     submission: schemas.ExamSubmitRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Submit answers for a practice exam and get results"""
     
@@ -139,7 +139,7 @@ async def submit_practice_exam(
     # Record attempt
     attempt = models.ExamAttempt(
         exam_id=exam_id,
-        user_id=UUID(current_user['user_id']),
+        user_id=current_user.id,
         answers=submission.answers,
         score=score,
         passed=passed
@@ -162,7 +162,7 @@ async def submit_practice_exam(
 async def get_topic_exam(
     topic_id: UUID,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Get the most recent practice exam for a topic (without correct answers)"""
     
