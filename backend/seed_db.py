@@ -68,7 +68,6 @@ def seed_database():
             print(f"✅ Course created: {python_course.title}")
         else:
             print(f"ℹ️  Course already exists: {python_course.title}")
-        print(f"✅ Course created: {python_course.title}")
         
         # 4. Create Topics with Content
         topics_data = [
@@ -571,22 +570,38 @@ def calculate_area(length, width):
             }
         ]
         
-                status="APPROVED"
-            )
-            db.add(topic)
-            db.commit()
-            db.refresh(topic)
-            
-            # Create content
-            content = models.TopicContent(
-                topic_id=topic.id,
-                content=topic_data["content"],
-                is_approved=True
-            )
-            db.add(content)
-            db.commit()
-            
-            print(f"  ✅ Topic {idx}: {topic.title}")
+        # 4. Create Topics with Content (if not exists)
+        existing_topics = db.query(models.Topic).filter(
+            models.Topic.course_id == python_course.id
+        ).count()
+        
+        if existing_topics > 0:
+            print(f"\nℹ️  Topics already exist for this course ({existing_topics} topics)")
+        else:
+            print("\nCreating topics and content...")
+            for idx, topic_data in enumerate(topics_data, 1):
+                # Create topic
+                topic = models.Topic(
+                    course_id=python_course.id,
+                    title=topic_data["title"],
+                    description=topic_data["description"],
+                    order=idx,
+                    status="APPROVED"
+                )
+                db.add(topic)
+                db.commit()
+                db.refresh(topic)
+                
+                # Create content
+                content = models.TopicContent(
+                    topic_id=topic.id,
+                    content=topic_data["content"],
+                    is_approved=True
+                )
+                db.add(content)
+                db.commit()
+                
+                print(f"  ✅ Topic {idx}: {topic.title}")
         
         # Get final counts
         total_topics = db.query(models.Topic).filter(
