@@ -459,6 +459,56 @@ export default function CourseDetailPage() {
                     </DialogContent>
                 </Dialog>
 
+                {/* Regenerate Feedback Dialog */}
+                <Dialog open={isRegenerateFeedbackOpen} onOpenChange={setIsRegenerateFeedbackOpen}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Regenerate Content</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div>
+                                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                                    What's missing or needs improvement? (optional)
+                                </label>
+                                <Textarea
+                                    placeholder="e.g., Add more examples, explain X in detail, include code snippets for Y..."
+                                    value={regenerateFeedback}
+                                    onChange={(e) => setRegenerateFeedback(e.target.value)}
+                                    className="min-h-[120px]"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setIsRegenerateFeedbackOpen(false)
+                                        setRegenerateFeedback("")
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={() => handleGenerateContent(regenerateFeedback)}
+                                    disabled={generating}
+                                    className="bg-indigo-600 hover:bg-indigo-700"
+                                >
+                                    {generating ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Regenerating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Regenerate Content
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
                 {/* Edit Topic Dialog */}
                 <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                     <DialogContent>
