@@ -79,7 +79,7 @@ export default function CourseDetailPage() {
         }
     }
 
-    const handleGenerateContent = async () => {
+    const handleGenerateContent = async (feedback?: string) => {
         if (!selectedTopic) return
         setGenerating(true)
         setContentLoading(true)
@@ -87,8 +87,10 @@ export default function CourseDetailPage() {
             await fetch(`http://localhost:8000/topics/${selectedTopic.id}/generate-content`, {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+                },
+                body: JSON.stringify({ feedback: feedback || null })
             })
             const response = await fetch(`http://localhost:8000/topics/${selectedTopic.id}/content`, {
                 headers: {
@@ -97,6 +99,10 @@ export default function CourseDetailPage() {
             })
             const data = await response.json()
             setActiveContent(data.content)
+
+            // Close feedback dialog and clear feedback
+            setIsRegenerateFeedbackOpen(false)
+            setRegenerateFeedback("")
         } catch (error) {
             console.error('Error generating content:', error)
         } finally {
