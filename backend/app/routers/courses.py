@@ -204,11 +204,59 @@ def delete_course(
 ):
     """Delete a course and all its topics (Admin only)"""
     course = crud.get_course(db, course_id=course_id)
-    if course is None:
+    if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     
-    # Delete the course (cascade will delete topics and content)
     db.delete(course)
     db.commit()
     
     return {"message": "Course deleted successfully"}
+
+@router.post("/{course_id}/publish")
+def publish_course(
+    course_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """Publish a course to make it available to consumers (Admin only)"""
+    course = crud.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Get all topics for this course
+    topics = db.query(models.Topic).filter(models.Topic.course_id == course_id).all()
+    
+    if not topics:
+        raise HTTPException(status_code=400, detail="Cannot publish course with no topics")
+    
+    # Check if all topics are approved
+    unapproved_topics = [t for t in topics if t.status != "APPROVED"]
+    if unapproved_topics:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot publish: {len(unapproved_topics)} topic(s) are not approved"
+        )
+    
+    # Check if all topics have content
+    topics_without_content = []
+    for topic in topics:
+        # Only check non-module topics (topics with parent_topic_id or no children)
+        if topic.parent_topic_id is not None:  # This is a sub-topic, must have content
+            content = db.query(models.TopicContent).filter(
+                models.TopicContent.topic_id == topic.id
+            ).first()
+            if not content:
+                topics_without_content.append(topic.title)
+    
+    if topics_without_content:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot publish: {len(topics_without_content)} topic(s) missing content"
+        )
+    
+    # All validations passed, publish the course
+    course.status = "PUBLISHED"
+    db.commit()
+    db.refresh(course)
+    
+    return {"message": "Course published successfully", "course": course}
