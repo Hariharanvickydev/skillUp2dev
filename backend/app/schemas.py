@@ -96,3 +96,53 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     user_id: Optional[UUID] = None
     role: Optional[str] = None
+
+# --- EXAM SCHEMAS ---
+class ExamQuestion(BaseModel):
+    question: str
+    options: List[str]  # 4 options
+    correct_index: int
+    explanation: str
+
+class ExamGenerateRequest(BaseModel):
+    difficulty: str = "medium"  # easy, medium, hard
+    num_questions: int = 10
+
+class ExamBase(BaseModel):
+    difficulty: str = "medium"
+    duration_minutes: int = 30
+    passing_score: int = 70
+
+class ExamCreate(ExamBase):
+    topic_id: UUID
+    questions: List[Dict[str, Any]]
+
+class Exam(ExamBase):
+    id: UUID
+    topic_id: UUID
+    questions: List[Dict[str, Any]]
+    is_published: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ExamForStudent(BaseModel):
+    """Exam response for students - without correct answers"""
+    id: UUID
+    topic_id: UUID
+    difficulty: str
+    duration_minutes: int
+    passing_score: int
+    questions: List[Dict[str, Any]]  # Without correct_index
+    created_at: datetime
+
+class ExamSubmitRequest(BaseModel):
+    answers: List[int]  # Array of selected indices
+
+class ExamResult(BaseModel):
+    score: int  # percentage
+    passed: bool
+    correct_answers: List[int]
+    explanations: List[str]
+    attempt_id: UUID
