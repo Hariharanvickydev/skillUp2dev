@@ -17,7 +17,7 @@ cursor.execute("""
 """, (course_id, course_title, course_description, datetime.utcnow(), datetime.utcnow()))
 
 # Create Module 1
-module1_id = str(uuid.uuid4())
+module1_id = uuid.uuid4().hex
 cursor.execute("""
     INSERT INTO topics (id, course_id, title, description, "order", status, created_at)
     VALUES (?, ?, ?, ?, 1, 'APPROVED', ?)
@@ -26,7 +26,7 @@ cursor.execute("""
       datetime.utcnow()))
 
 # Create Topic 1.1
-topic1_1_id = str(uuid.uuid4())
+topic1_1_id = uuid.uuid4().hex
 cursor.execute("""
     INSERT INTO topics (id, course_id, title, description, "order", parent_topic_id, status, created_at)
     VALUES (?, ?, ?, ?, 1, ?, 'APPROVED', ?)
