@@ -178,16 +178,39 @@ export default function CourseDetailPage() {
     }
 
     const handleRegenerateTopics = async () => {
-        setIsRegenerateDialogOpen(false)
         setGenerating(true)
         try {
             await generateTopics(id)
+            setIsRegenerateDialogOpen(false)
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert("Failed to regenerate topics")
+            alert("Failed to generate topics")
         } finally {
             setGenerating(false)
+        }
+    }
+
+    const handlePublishCourse = async () => {
+        try {
+            const response = await fetch(`http://localhost:8000/courses/${id}/publish`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                alert(error.detail || 'Failed to publish course')
+                return
+            }
+
+            alert('Course published successfully!')
+            fetchCourse()
+        } catch (e) {
+            console.error(e)
+            alert('Failed to publish course')
         }
     }
 
@@ -222,10 +245,21 @@ export default function CourseDetailPage() {
                             <h1 className="text-3xl font-bold text-slate-900">{course.title}</h1>
                         </div>
                     </div>
-                    <Button variant="destructive" onClick={() => setIsDeleteCourseDialogOpen(true)}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Course
-                    </Button>
+                    <div className="flex gap-2">
+                        {course.status === 'COMPLETED' && (
+                            <Button
+                                onClick={() => handlePublishCourse()}
+                                className="bg-green-600 hover:bg-green-700"
+                            >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Publish Course
+                            </Button>
+                        )}
+                        <Button variant="destructive" onClick={() => setIsDeleteCourseDialogOpen(true)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Course
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Generate Topics Button */}
