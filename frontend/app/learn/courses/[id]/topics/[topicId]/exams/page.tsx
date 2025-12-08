@@ -71,14 +71,20 @@ export default function ExamLibraryPage() {
                 })
             })
 
-            if (!response.ok) throw new Error('Failed to create exam')
+            console.log('Exam creation response status:', response.status)
+            const responseText = await response.text()
+            console.log('Exam creation response:', responseText)
 
-            const exam = await response.json()
+            if (!response.ok) {
+                throw new Error(`Failed to create exam: ${response.status} - ${responseText}`)
+            }
+
+            const exam = JSON.parse(responseText)
             setShowCreateDialog(false)
             router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${exam.id}`)
         } catch (error) {
             console.error('Error creating exam:', error)
-            alert('Failed to create exam')
+            alert(`Failed to create exam: ${error instanceof Error ? error.message : 'Unknown error'}`)
         } finally {
             setCreating(false)
         }
