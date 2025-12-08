@@ -138,6 +138,9 @@ async def submit_practice_exam(
     score = int((correct_count / len(questions)) * 100)
     passed = score >= exam.passing_score
     
+    # Increment attempt counter
+    exam.num_attempts += 1
+    
     # Record attempt
     attempt = models.ExamAttempt(
         exam_id=exam_id,
@@ -193,3 +196,43 @@ async def get_topic_exam(
         questions=questions_for_student,
         created_at=exam.created_at
     )
+
+@router.get("/topics/{topic_id}/exams")
+async def get_topic_exam_library(
+    topic_id: UUID,
+    difficulty: str = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Get all public exams for a topic (exam library)"""
+    
+    query = db.query(models.Exam).filter(
+        models.Exam.topic_id == topic_id,
+        models.Exam.is_public == True,
+        models.Exam.is_published == True
+    )
+    
+    # Filter by difficulty if specified
+    if difficulty:
+        query = query.filter(models.Exam.difficulty == difficulty)
+    
+    # Order by newest first
+    exams = query.order_by(models.Exam.created_at.desc()).all()
+    
+    # Format response with creator info
+    result = []
+    for exam in exams:
+        creator = db.query(models.User).filter(models.User.id == exam.created_by_user_id).first()
+        result.append({
+            "id": exam.id,
+            "difficulty": exam.difficulty,
+            "num_questions": len(exam.questions),
+            "duration_minutes": exam.duration_minutes,
+            "passing_score": exam.passing_score,
+            "num_attempts": exam.num_attempts,
+            "created_by": creator.full_name if creator and creator.full_name else "Anonymous",
+            "created_at": exam.created_at,
+            "is_mine": exam.created_by_user_id == current_user.id
+        })
+    
+    return result
