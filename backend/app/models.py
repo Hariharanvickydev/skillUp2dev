@@ -48,6 +48,7 @@ class Topic(Base):
 
     course = relationship("Course", back_populates="topics")
     content = relationship("TopicContent", back_populates="topic", uselist=False, cascade="all, delete-orphan")
+    exams = relationship("Exam", back_populates="topic", cascade="all, delete-orphan")
 
 class TopicContent(Base):
     __tablename__ = "topic_contents"
@@ -60,6 +61,36 @@ class TopicContent(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     topic = relationship("Topic", back_populates="content")
+
+class Exam(Base):
+    __tablename__ = "exams"
+    
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    topic_id = Column(Uuid(as_uuid=True), ForeignKey("topics.id"), nullable=False)
+    questions = Column(JSON, nullable=False)  # Array of {question, options[], correct_index, explanation}
+    difficulty = Column(String, default="medium")  # easy, medium, hard
+    duration_minutes = Column(Integer, default=30)
+    passing_score = Column(Integer, default=70)  # percentage
+    is_published = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+    
+    topic = relationship("Topic", back_populates="exams")
+    attempts = relationship("ExamAttempt", back_populates="exam", cascade="all, delete-orphan")
+
+class ExamAttempt(Base):
+    __tablename__ = "exam_attempts"
+    
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    exam_id = Column(Uuid(as_uuid=True), ForeignKey("exams.id"), nullable=False)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    answers = Column(JSON, nullable=False)  # Array of selected indices
+    score = Column(Integer)  # percentage
+    passed = Column(Boolean)
+    started_at = Column(DateTime, server_default=func.now())
+    submitted_at = Column(DateTime, nullable=True) # Can be null if not submitted yet
+    
+    exam = relationship("Exam", back_populates="attempts")
+    user = relationship("User") # Assuming User model is defined elsewhere and we don't need back_populates here
 
 class UserProgress(Base):
     __tablename__ = "user_progress"
