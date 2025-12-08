@@ -58,45 +58,68 @@ def generate_topics(
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-flash-latest')
 
+
     prompt = f"""
     You are an expert curriculum designer for a learning platform called 'SkillUp2Dev'.
     
     The user wants a course titled: "{course.title}"
     User Description/Context: "{course.description or ''}"
 
-    Your task is to generate a COMPREHENSIVE and COMPLETE structured list of topics (syllabus) for this course.
+    Your task is to generate a COMPREHENSIVE and HIERARCHICAL structured curriculum for this course.
     
     CRITICAL INSTRUCTIONS:
     1. ANALYZE the inputs. 
        - If the input contains a raw syllabus (e.g. "Unit I: ... Unit II: ..."), structure that exact syllabus into the output.
        - If the input is just a topic (e.g. "Python Bootcamp"), GENERATE a comprehensive curriculum from scratch.
     
-    2. COMPREHENSIVE COVERAGE:
-       - Include ALL essential topics needed for complete mastery of the subject.
-       - DO NOT limit yourself to a specific number of topics (e.g., 10 or 15).
-       - For "Python Basic Training", include ALL fundamental Python concepts (variables, data types, control flow, functions, OOP, file I/O, error handling, modules, etc.).
-       - For advanced courses, include all intermediate and advanced topics as appropriate.
-       - Think about what a student needs to know to be job-ready or proficient in the subject.
+    2. HIERARCHICAL STRUCTURE (MANDATORY):
+       - Create MODULES (parent topics) with order: 1, 2, 3, etc.
+       - Each module MUST have SUB-TOPICS (child topics) with order: 1.1, 1.2, 1.3, etc.
+       - Example: Module 1 has sub-topics 1.1, 1.2, 1.3; Module 2 has 2.1, 2.2, 2.3, etc.
+       - Each module should have 4-8 sub-topics covering specific concepts within that module.
     
-    3. QUALITY OVER ARBITRARY LIMITS:
-       - If a beginner course needs 20+ topics to cover fundamentals properly, include all 20+.
-       - If an advanced course needs 30+ topics, include all 30+.
-       - Each topic should be substantial and meaningful, not artificially split or combined.
+    3. COMPREHENSIVE COVERAGE:
+       - Include ALL essential topics needed for complete mastery of the subject.
+       - For "Python Basic Training", include ALL fundamental Python concepts organized into modules.
+       - Each sub-topic should be a specific, learnable concept (not too broad, not too narrow).
     
     4. FORMAT the output as a strict JSON array of objects. Do not include markdown formatting (like ```json).
     
-    JSON Structure:
+    JSON Structure (MUST include both modules and sub-topics):
     [
         {{
-            "title": "Topic Title (e.g. 'Unit I: Basics' or 'Chapter 1: Setup')",
-            "description": "Brief summary of what this topic covers (2-3 sentences).",
+            "title": "Module 1: Introduction to Python",
+            "description": "Overview of Python programming language and setup",
             "order": 1
+        }},
+        {{
+            "title": "Topic 1.1: What is Python?",
+            "description": "History, features, and applications of Python",
+            "order": 1.1
+        }},
+        {{
+            "title": "Topic 1.2: Installing Python",
+            "description": "Setting up Python environment and IDE",
+            "order": 1.2
+        }},
+        {{
+            "title": "Module 2: Python Basics",
+            "description": "Fundamental syntax and concepts",
+            "order": 2
+        }},
+        {{
+            "title": "Topic 2.1: Variables and Data Types",
+            "description": "Understanding variables, integers, floats, strings",
+            "order": 2.1
         }},
         ...
     ]
     
-    Remember: COMPLETENESS is more important than brevity. Include everything a learner needs.
+    Remember: 
+    - EVERY module (order: 1, 2, 3...) MUST have sub-topics (order: 1.1, 1.2, 2.1, 2.2...)
+    - This creates a clear learning path with organized modules and specific lessons
     """
+
 
     try:
         response = model.generate_content(prompt)
