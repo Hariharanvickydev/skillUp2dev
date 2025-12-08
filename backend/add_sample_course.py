@@ -19,20 +19,20 @@ cursor.execute("""
 # Create Module 1
 module1_id = str(uuid.uuid4())
 cursor.execute("""
-    INSERT INTO topics (id, course_id, title, description, "order", status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 1, 'APPROVED', ?, ?)
+    INSERT INTO topics (id, course_id, title, description, "order", status, created_at)
+    VALUES (?, ?, ?, ?, 1, 'APPROVED', ?)
 """, (module1_id, course_id, "Module 1: Introduction to React", 
       "Understanding React fundamentals and core concepts", 
-      datetime.utcnow(), datetime.utcnow()))
+      datetime.utcnow()))
 
 # Create Topic 1.1
 topic1_1_id = str(uuid.uuid4())
 cursor.execute("""
-    INSERT INTO topics (id, course_id, title, description, "order", parent_topic_id, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 1, ?, 'APPROVED', ?, ?)
+    INSERT INTO topics (id, course_id, title, description, "order", parent_topic_id, status, created_at)
+    VALUES (?, ?, ?, ?, 1, ?, 'APPROVED', ?)
 """, (topic1_1_id, course_id, "Topic 1.1: What is React?",
       "Introduction to React library and its ecosystem",
-      module1_id, datetime.utcnow(), datetime.utcnow()))
+      module1_id, datetime.utcnow()))
 
 # Add content for Topic 1.1
 content1_1 = """# What is React?
@@ -89,11 +89,11 @@ cursor.execute("""
 # Create Topic 1.2
 topic1_2_id = str(uuid.uuid4())
 cursor.execute("""
-    INSERT INTO topics (id, course_id, title, description, "order", parent_topic_id, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 2, ?, 'APPROVED', ?, ?)
+    INSERT INTO topics (id, course_id, title, description, "order", parent_topic_id, status, created_at)
+    VALUES (?, ?, ?, ?, 2, ?, 'APPROVED', ?)
 """, (topic1_2_id, course_id, "Topic 1.2: Setting Up React",
       "How to create and configure a React project",
-      module1_id, datetime.utcnow(), datetime.utcnow()))
+      module1_id, datetime.utcnow()))
 
 # Add content for Topic 1.2
 content1_2 = """# Setting Up React
