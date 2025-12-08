@@ -241,8 +241,19 @@ export default function CourseDetailPage() {
                         <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <div>
+                        <div className="flex items-center gap-3">
                             <h1 className="text-3xl font-bold text-slate-900">{course.title}</h1>
+                            {course.status === 'PUBLISHED' && (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full flex items-center gap-1">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Published
+                                </span>
+                            )}
+                            {course.status === 'COMPLETED' && (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full">
+                                    Completed
+                                </span>
+                            )}
                         </div>
                     </div>
                     <div className="flex gap-2">
