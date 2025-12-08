@@ -47,8 +47,7 @@ def seed_database():
         python_course = models.Course(
             title="Python Programming Fundamentals",
             description="Master Python from basics to advanced concepts. Learn variables, functions, OOP, and more.",
-            status="PUBLISHED",
-            created_by_user_id=admin_user.id
+            status="PUBLISHED"
         )
         db.add(python_course)
         db.commit()
