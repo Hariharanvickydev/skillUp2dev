@@ -8,6 +8,7 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { ExamLibraryDialog } from '@/components/ExamLibraryDialog'
 
 export default function TopicContentPage() {
     const params = useParams()
@@ -19,7 +20,7 @@ export default function TopicContentPage() {
     const [course, setCourse] = useState<any>(null)
     const [content, setContent] = useState<string>('')
     const [loading, setLoading] = useState(true)
-    const [generatingExam, setGeneratingExam] = useState(false)
+    const [examLibraryOpen, setExamLibraryOpen] = useState(false)
 
     useEffect(() => {
         fetchData()
@@ -162,40 +163,6 @@ export default function TopicContentPage() {
         }
     }
 
-    const handleGeneratePracticeExam = async () => {
-        setGeneratingExam(true)
-        try {
-            const response = await fetch(`http://localhost:8000/exams/topics/${topicId}/generate-practice-exam`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    difficulty: 'medium',
-                    num_questions: 10
-                })
-            })
-
-            console.log('Response status:', response.status)
-            const responseText = await response.text()
-            console.log('Response body:', responseText)
-
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status} - ${responseText}`)
-            }
-
-            const exam = JSON.parse(responseText)
-            // Navigate to exam page
-            router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${exam.id}`)
-        } catch (error) {
-            console.error('Error generating exam:', error)
-            alert(`Failed to generate practice exam: ${error instanceof Error ? error.message : 'Unknown error'}`)
-        } finally {
-            setGeneratingExam(false)
-        }
-    }
-
     if (loading) return <div className="p-24">Loading...</div>
     if (!topic || !course) return <div className="p-24">Topic not found</div>
 
@@ -214,18 +181,14 @@ export default function TopicContentPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleGeneratePracticeExam} disabled={generatingExam || !content}>
-                            {generatingExam ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Generating...
-                                </>
-                            ) : (
-                                <>
-                                    <Brain className="mr-2 h-4 w-4" />
-                                    <span className="hidden sm:inline">Practice Exam</span>
-                                </>
-                            )}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setExamLibraryOpen(true)}
+                            disabled={!content}
+                        >
+                            <Brain className="mr-2 h-4 w-4" />
+                            <span className="hidden sm:inline">Practice Exams</span>
                         </Button>
                         <Button variant="outline" size="sm" onClick={handleExportPDF}>
                             <Download className="mr-2 h-4 w-4" />
@@ -315,6 +278,15 @@ export default function TopicContentPage() {
                     </div>
                 )}
             </div>
+
+            {/* Exam Library Dialog */}
+            <ExamLibraryDialog
+                open={examLibraryOpen}
+                onOpenChange={setExamLibraryOpen}
+                topicId={topicId}
+                courseId={courseId}
+            />
         </main>
     )
 }
+```
