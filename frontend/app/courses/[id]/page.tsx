@@ -212,7 +212,6 @@ export default function CourseDetailPage() {
                         </Button>
                         <div>
                             <h1 className="text-3xl font-bold text-slate-900">{course.title}</h1>
-                            <p className="text-slate-600 mt-1">{course.description}</p>
                         </div>
                     </div>
                     <Button variant="destructive" onClick={() => setIsDeleteCourseDialogOpen(true)}>
