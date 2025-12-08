@@ -8,7 +8,7 @@ def get_course(db: Session, course_id: UUID):
 def get_courses(db: Session, skip: int = 0, limit: int = 100, published_only: bool = False):
     query = db.query(models.Course)
     if published_only:
-        query = query.filter(models.Course.is_published == True)
+        query = query.filter(models.Course.status == 'PUBLISHED')
     return query.offset(skip).limit(limit).all()
 
 def create_course(db: Session, course: schemas.CourseCreate, creator_id: UUID = None):
