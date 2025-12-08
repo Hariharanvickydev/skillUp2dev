@@ -84,82 +84,61 @@ export default function CourseDetailPage() {
 
         try {
             const jsPDF = (await import('jspdf')).default
-            const html2canvas = (await import('html2canvas')).default
 
-            const element = document.querySelector('.prose') as HTMLElement
-            if (!element) {
-                alert('Content not found. Please try again.')
-                return
-            }
-
-            console.log('Generating PDF...')
-
-            // Clone element to avoid modifying the original
-            const clone = element.cloneNode(true) as HTMLElement
-
-            // Remove problematic CSS that html2canvas can't handle
-            const style = document.createElement('style')
-            style.textContent = `
-                * {
-                    color: rgb(0, 0, 0) !important;
-                    background-color: rgb(255, 255, 255) !important;
-                }
-                code {
-                    background-color: rgb(240, 240, 240) !important;
-                    color: rgb(0, 0, 0) !important;
-                }
-            `
-            clone.appendChild(style)
-
-            // Temporarily add clone to document
-            clone.style.position = 'absolute'
-            clone.style.left = '-9999px'
-            document.body.appendChild(clone)
-
-            const canvas = await html2canvas(clone, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                onclone: (clonedDoc) => {
-                    // Remove any lab() color functions
-                    const allElements = clonedDoc.querySelectorAll('*')
-                    allElements.forEach((el: any) => {
-                        if (el.style) {
-                            el.style.color = 'rgb(0, 0, 0)'
-                        }
-                    })
-                }
-            })
-
-            // Remove clone
-            document.body.removeChild(clone)
-
-            const imgData = canvas.toDataURL('image/png')
             const pdf = new jsPDF('p', 'mm', 'a4')
+            const pageWidth = pdf.internal.pageSize.getWidth()
+            const pageHeight = pdf.internal.pageSize.getHeight()
+            const margin = 15
+            const maxWidth = pageWidth - (margin * 2)
+            let yPosition = margin
 
-            const pdfWidth = pdf.internal.pageSize.getWidth()
-            const pdfHeight = pdf.internal.pageSize.getHeight()
-            const imgWidth = canvas.width
-            const imgHeight = canvas.height
+            // Add title
+            pdf.setFontSize(18)
+            pdf.setFont('helvetica', 'bold')
+            const titleLines = pdf.splitTextToSize(selectedTopic.title, maxWidth)
+            pdf.text(titleLines, margin, yPosition)
+            yPosition += titleLines.length * 8 + 10
 
-            // Calculate dimensions to fit page width
-            const ratio = pdfWidth / imgWidth
-            const scaledHeight = imgHeight * ratio
+            // Add course name
+            pdf.setFontSize(12)
+            pdf.setFont('helvetica', 'normal')
+            pdf.text(`Course: ${course.title}`, margin, yPosition)
+            yPosition += 15
 
-            let heightLeft = scaledHeight
-            let position = 0
+            // Add content
+            pdf.setFontSize(10)
 
-            // Add first page
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight)
-            heightLeft -= pdfHeight
+            // Convert markdown to plain text (simple approach)
+            const plainText = activeContent
+                .replace(/#{1,6}\s/g, '') // Remove headers
+                .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+                .replace(/\*(.+?)\*/g, '$1') // Remove italic
+                .replace(/`(.+?)`/g, '$1') // Remove inline code
+                .replace(/```[\s\S]*?```/g, '[Code Block]') // Replace code blocks
+                .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Remove links
+                .replace(/^\s*[-*+]\s/gm, '• ') // Convert lists
+                .replace(/^\s*\d+\.\s/gm, '• ') // Convert numbered lists
 
-            // Add additional pages if content is longer than one page
-            while (heightLeft > 0) {
-                position = heightLeft - scaledHeight
-                pdf.addPage()
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight)
-                heightLeft -= pdfHeight
+            const lines = plainText.split('\n')
+
+            for (const line of lines) {
+                if (!line.trim()) {
+                    yPosition += 5
+                    continue
+                }
+
+                const textLines = pdf.splitTextToSize(line, maxWidth)
+
+                for (const textLine of textLines) {
+                    // Check if we need a new page
+                    if (yPosition > pageHeight - margin) {
+                        pdf.addPage()
+                        yPosition = margin
+                    }
+
+                    pdf.text(textLine, margin, yPosition)
+                    yPosition += 6
+                }
             }
 
             // Clean filename
