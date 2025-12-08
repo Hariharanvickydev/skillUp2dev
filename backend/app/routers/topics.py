@@ -139,19 +139,11 @@ def approve_topic(
         db.commit()
 
     # Mark topic as approved
-    topic = crud.update_topic_status(db, topic_id, "APPROVED")
+    topic.status = "APPROVED"
+    db.commit()
+    db.refresh(topic)
 
-    # Check if all topics in the course are approved
-    course_id = topic.course_id
-    all_topics = crud.get_topics_by_course(db, course_id)
-    if all(t.status == "APPROVED" for t in all_topics):
-        # Update course status to COMPLETED
-        course = crud.get_course(db, course_id)
-        if course:
-            course.status = "COMPLETED"
-            db.commit()
-            
-    return {"message": "Topic approved successfully"}
+    return topic
 
 @router.put("/{topic_id}", response_model=schemas.Topic)
 def update_topic(
