@@ -114,6 +114,16 @@ export default function LearnPage() {
                                             <span className="flex-1">{course.title}</span>
                                             <BookOpen className="h-5 w-5 text-indigo-600 flex-shrink-0 ml-2" />
                                         </CardTitle>
+                                        {course.status === 'PARTIALLY_PUBLISHED' && (
+                                            <span className="inline-block px-2 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full mt-2">
+                                                In Progress
+                                            </span>
+                                        )}
+                                        {course.status === 'PUBLISHED' && (
+                                            <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full mt-2">
+                                                Complete
+                                            </span>
+                                        )}
                                     </CardHeader>
                                     <CardContent>
                                         <p className="text-sm text-slate-500 mb-4 line-clamp-2">

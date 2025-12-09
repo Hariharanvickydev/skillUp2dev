@@ -324,9 +324,10 @@ def publish_module(
     # All validations passed, publish the module
     module.is_published = True
     
-    # Auto-publish course when first module is published (if not already published)
-    if course.status != "PUBLISHED":
-        course.status = "PUBLISHED"
+    # Auto-publish course as PARTIALLY_PUBLISHED when first module is published
+    # This allows consumers to see courses with some content ready
+    if course.status == "DRAFT" or course.status == "COMPLETED":
+        course.status = "PARTIALLY_PUBLISHED"
     
     db.commit()
     db.refresh(module)
@@ -335,6 +336,6 @@ def publish_module(
     return {
         "message": f"Module '{module.title}' published successfully",
         "module": module,
-        "course_published": course.status == "PUBLISHED"
+        "course_status": course.status
     }
 
