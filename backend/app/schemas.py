@@ -40,6 +40,7 @@ class Topic(TopicBase):
     id: UUID
     course_id: UUID
     status: str
+    is_published: bool = False  # Module-level publishing status
     created_at: datetime
     content: Optional[TopicContent] = None # Include content in nested response if needed
 
