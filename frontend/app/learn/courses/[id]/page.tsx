@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { getCourse, addTopic, updateTopic, deleteTopic, generateTopics, approveTopic, getContent, generateContent } from "@/lib/api"
-import { getCourseProgress, getCourseProgressStats, markTopicComplete, unmarkTopicComplete } from "@/lib/progress-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,10 +23,6 @@ export default function CourseDetailPage() {
     const [topics, setTopics] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [generating, setGenerating] = useState(false)
-
-    // Progress tracking state
-    const [progressData, setProgressData] = useState<any[]>([])
-    const [progressStats, setProgressStats] = useState<any>(null)
 
     // Content Dialog State
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -53,45 +48,11 @@ export default function CourseDetailPage() {
             const data = await getCourse(id)
             setCourse(data)
             if (data.topics) setTopics(data.topics)
-
-            // Fetch progress data
-            await fetchProgress()
         } catch (e) {
             console.error(e)
         } finally {
             setLoading(false)
         }
-    }
-
-    const fetchProgress = async () => {
-        try {
-            const [progress, stats] = await Promise.all([
-                getCourseProgress(id),
-                getCourseProgressStats(id)
-            ])
-            setProgressData(progress)
-            setProgressStats(stats)
-        } catch (e) {
-            console.error('Error fetching progress:', e)
-        }
-    }
-
-    const handleToggleComplete = async (topicId: string, currentlyCompleted: boolean) => {
-        try {
-            if (currentlyCompleted) {
-                await unmarkTopicComplete(topicId)
-            } else {
-                await markTopicComplete(topicId)
-            }
-            await fetchProgress()
-        } catch (e) {
-            console.error('Error toggling completion:', e)
-            alert('Failed to update progress')
-        }
-    }
-
-    const isTopicCompleted = (topicId: string) => {
-        return progressData.some(p => p.topic_id === topicId && p.completed)
     }
 
     useEffect(() => {
@@ -421,35 +382,6 @@ export default function CourseDetailPage() {
                     </div>
                 </div>
 
-                {/* Progress Bar */}
-                {progressStats && (
-                    <div className="mb-6 bg-white rounded-lg border p-6">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <h3 className="text-lg font-semibold text-slate-900">Your Progress</h3>
-                                <p className="text-sm text-slate-600">
-                                    {progressStats.completed_topics} of {progressStats.total_topics} topics completed
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-3xl font-bold text-indigo-600">{progressStats.percentage}%</div>
-                                {progressStats.percentage === 100 && (
-                                    <span className="text-sm text-green-600 font-semibold">🎉 Complete!</span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3">
-                            <div
-                                className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-500"
-                                style={{ width: `${progressStats.percentage}%` }}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Course Description */}
-                {/* Removed course description section as per instruction */}
-
                 {/* Topics List */}
                 {topics.length > 0 && (
                     <div className="grid gap-4">
@@ -480,46 +412,29 @@ export default function CourseDetailPage() {
 
                                         {subTopics.length > 0 && (
                                             <div className="p-4 space-y-2">
-                                                {subTopics.map((topic: any) => {
-                                                    const completed = isTopicCompleted(topic.id)
-
-                                                    return (
-                                                        <div key={topic.id} className="flex items-center gap-3 p-3 bg-white rounded border hover:shadow-sm transition-shadow">
-                                                            {/* Completion Checkbox */}
-                                                            <button
-                                                                onClick={() => handleToggleComplete(topic.id, completed)}
-                                                                className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${completed
-                                                                    ? 'bg-green-500 border-green-500'
-                                                                    : 'border-gray-300 hover:border-green-400'
-                                                                    }`}
-                                                            >
-                                                                {completed && (
-                                                                    <CheckCircle className="h-4 w-4 text-white" />
+                                                {subTopics.map((topic: any) => (
+                                                    <div key={topic.id} className="flex items-center justify-between p-3 bg-white rounded border hover:shadow-sm transition-shadow">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-medium">• {topic.title}</span>
+                                                                {topic.status === 'APPROVED' && (
+                                                                    <CheckCircle className="h-4 w-4 text-green-600" />
                                                                 )}
-                                                            </button>
-
-                                                            <div className="flex-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className={`text-sm font-medium ${completed ? 'line-through text-gray-500' : ''}`}>
-                                                                        • {topic.title}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-xs text-slate-500 mt-1">{topic.description}</p>
                                                             </div>
-
-                                                            <div className="flex gap-2">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => router.push(`/learn/courses/${id}/topics/${topic.id}`)}
-                                                                >
-                                                                    <FileText className="mr-2 h-4 w-4" />
-                                                                    View Content
-                                                                </Button>
-                                                            </div>
+                                                            <p className="text-xs text-slate-500 mt-1">{topic.description}</p>
                                                         </div>
-                                                    )
-                                                })}
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => router.push(`/learn/courses/${id}/topics/${topic.id}`)}
+                                                            >
+                                                                <FileText className="mr-2 h-4 w-4" />
+                                                                View Content
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
