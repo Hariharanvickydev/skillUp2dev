@@ -218,7 +218,7 @@ def publish_course(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
-    """Publish a course to make it available to consumers (Admin only)"""
+    """Publish entire course - publishes all modules at once (Admin only)"""
     course = crud.get_course(db, course_id=course_id)
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -254,9 +254,80 @@ def publish_course(
             detail=f"Cannot publish: {len(topics_without_content)} topic(s) missing content"
         )
     
-    # All validations passed, publish the course
+    # All validations passed, publish the course and all modules
     course.status = "PUBLISHED"
+    
+    # Publish all parent topics (modules)
+    for topic in topics:
+        if topic.parent_topic_id is None:  # This is a module
+            topic.is_published = True
+    
     db.commit()
     db.refresh(course)
     
-    return {"message": "Course published successfully", "course": course}
+    return {"message": "Course and all modules published successfully", "course": course}
+
+@router.post("/{course_id}/modules/{module_id}/publish")
+def publish_module(
+    course_id: UUID,
+    module_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """Publish a specific module (parent topic) independently (Admin only)"""
+    # Validate course exists
+    course = crud.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Get the module (parent topic)
+    module = db.query(models.Topic).filter(
+        models.Topic.id == module_id,
+        models.Topic.course_id == course_id,
+        models.Topic.parent_topic_id == None  # Must be a parent topic (module)
+    ).first()
+    
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found or is not a parent topic")
+    
+    # Get all sub-topics for this module
+    sub_topics = db.query(models.Topic).filter(
+        models.Topic.parent_topic_id == module_id
+    ).all()
+    
+    if not sub_topics:
+        raise HTTPException(status_code=400, detail="Cannot publish module with no sub-topics")
+    
+    # Check if all sub-topics are approved
+    unapproved = [t for t in sub_topics if t.status != "APPROVED"]
+    if unapproved:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot publish module: {len(unapproved)} sub-topic(s) are not approved"
+        )
+    
+    # Check if all sub-topics have content
+    topics_without_content = []
+    for topic in sub_topics:
+        content = db.query(models.TopicContent).filter(
+            models.TopicContent.topic_id == topic.id
+        ).first()
+        if not content:
+            topics_without_content.append(topic.title)
+    
+    if topics_without_content:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot publish module: {len(topics_without_content)} sub-topic(s) missing content"
+        )
+    
+    # All validations passed, publish the module
+    module.is_published = True
+    db.commit()
+    db.refresh(module)
+    
+    return {
+        "message": f"Module '{module.title}' published successfully",
+        "module": module
+    }
+

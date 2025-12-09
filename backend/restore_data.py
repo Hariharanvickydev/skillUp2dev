@@ -129,6 +129,7 @@ def restore_topics(db: Session, backup_dir: str):
             order=topic_dict["order"],
             status=topic_dict.get("status", "PENDING_APPROVAL"),
             parent_topic_id=uuid.UUID(topic_dict["parent_topic_id"]) if topic_dict.get("parent_topic_id") else None,
+            is_published=topic_dict.get("is_published", False),
             created_at=parse_datetime(topic_dict.get("created_at"))
         )
         db.add(topic)

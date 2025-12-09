@@ -65,6 +65,7 @@ def backup_topics(db: Session):
         "order": topic.order,
         "status": topic.status,
         "parent_topic_id": str(topic.parent_topic_id) if topic.parent_topic_id else None,
+        "is_published": topic.is_published,
         "created_at": topic.created_at.isoformat() if topic.created_at else None
     } for topic in topics]
 

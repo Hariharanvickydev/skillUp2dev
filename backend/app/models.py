@@ -44,6 +44,7 @@ class Topic(Base):
     order = Column(Integer, nullable=False)
     status = Column(String, default="PENDING_APPROVAL") # PENDING_APPROVAL, APPROVED, REJECTED
     parent_topic_id = Column(Uuid(as_uuid=True), ForeignKey("topics.id"), nullable=True)
+    is_published = Column(Boolean, default=False)  # Module-level publishing
     created_at = Column(DateTime, server_default=func.now())
 
     course = relationship("Course", back_populates="topics")
