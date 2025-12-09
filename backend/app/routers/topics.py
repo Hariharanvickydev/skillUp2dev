@@ -31,20 +31,36 @@ def generate_content(
     genai.configure(api_key=api_key)
 
     # 1. Define the model
-    model = genai.GenerativeModel('gemini-flash-latest')
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
     # 2. Prepare the prompt with optional feedback
     feedback = request_body.get('feedback') if request_body else None
     
     base_prompt = f"""
-    Generate comprehensive and engaging content for a topic titled "{topic.title}".
+    Generate comprehensive and engaging educational content for a topic titled "{topic.title}".
     The topic belongs to a course titled "{course.title}" which is described as: "{course.description}".
 
     The content should be suitable for an educational setting, covering key concepts,
     examples, and practical applications related to "{topic.title}".
     Ensure the content is well-structured, easy to understand, and informative.
     Aim for a length of approximately 500-800 words.
-    Format the content in markdown.
+    
+    CRITICAL FORMATTING INSTRUCTIONS:
+    - Return ONLY the markdown content itself
+    - DO NOT wrap the content in code blocks (no ```markdown or ``` tags)
+    - DO NOT add any preamble or explanation
+    - Use proper markdown formatting: # for headers, ** for bold, * for italic, - for lists, etc.
+    - Start directly with the content (e.g., "# Introduction to...")
+    - Include code examples in proper markdown code blocks when relevant
+    
+    Example of correct format:
+    # Introduction to {topic.title}
+    
+    This topic covers...
+    
+    ## Key Concepts
+    
+    **Important Point**: Description here...
     """
     
     if feedback:
@@ -64,6 +80,17 @@ Please address this feedback and decide whether to:
     try:
         response = model.generate_content(prompt)
         content_text = response.text
+        
+        # Clean up any markdown code blocks that the AI might have added
+        content_text = content_text.strip()
+        if content_text.startswith("```markdown"):
+            content_text = content_text[len("```markdown"):].strip()
+        elif content_text.startswith("```"):
+            content_text = content_text[3:].strip()
+        
+        if content_text.endswith("```"):
+            content_text = content_text[:-3].strip()
+            
     except Exception as e:
         error_msg = str(e)
         print(f"ERROR in generate_content: {error_msg}")  # Debug logging
