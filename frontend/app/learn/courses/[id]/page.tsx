@@ -477,7 +477,6 @@ export default function CourseDetailPage() {
                                                     <h3 className="text-lg font-semibold flex items-center gap-2">
                                                         {parentTopic.order}. {parentTopic.title}
                                                     </h3>
-                                                    <p className="text-sm text-slate-600 mt-1">{parentTopic.description}</p>
                                                 </div>
                                             </div>
                                         </div>
