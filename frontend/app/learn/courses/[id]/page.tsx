@@ -448,11 +448,7 @@ export default function CourseDetailPage() {
                 )}
 
                 {/* Course Description */}
-                {course.description && (
-                    <div className="mb-6 bg-white rounded-lg border p-4">
-                        <p className="text-slate-700">{course.description}</p>
-                    </div>
-                )}
+                {/* Removed course description section as per instruction */}
 
                 {/* Topics List */}
                 {topics.length > 0 && (
@@ -477,6 +473,7 @@ export default function CourseDetailPage() {
                                                     <h3 className="text-lg font-semibold flex items-center gap-2">
                                                         {parentTopic.order}. {parentTopic.title}
                                                     </h3>
+                                                    <p className="text-sm text-slate-600 mt-1">{parentTopic.description}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -507,6 +504,7 @@ export default function CourseDetailPage() {
                                                                         • {topic.title}
                                                                     </span>
                                                                 </div>
+                                                                <p className="text-xs text-slate-500 mt-1">{topic.description}</p>
                                                             </div>
 
                                                             <div className="flex gap-2">
