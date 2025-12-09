@@ -387,9 +387,15 @@ export default function CourseDetailPage() {
                     <div className="grid gap-4">
                         <h2 className="text-xl font-semibold">Course Outline</h2>
                         {topics
-                            .filter((topic: any) => !topic.parent_topic_id)
+                            .filter((topic: any) => !topic.parent_topic_id && topic.is_published) // Only show published modules
                             .map((parentTopic: any) => {
-                                const subTopics = topics.filter((t: any) => t.parent_topic_id === parentTopic.id)
+                                // Only show approved sub-topics
+                                const subTopics = topics.filter((t: any) =>
+                                    t.parent_topic_id === parentTopic.id && t.status === 'APPROVED'
+                                )
+
+                                // Don't show module if it has no approved sub-topics
+                                if (subTopics.length === 0) return null
 
                                 return (
                                     <div key={parentTopic.id} className="border rounded-lg overflow-hidden">
