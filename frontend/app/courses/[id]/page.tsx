@@ -229,6 +229,29 @@ export default function CourseDetailPage() {
         }
     }
 
+    const handlePublishModule = async (moduleId: string, moduleTitle: string) => {
+        try {
+            const response = await fetch(`http://localhost:8000/courses/${id}/modules/${moduleId}/publish`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                alert(error.detail || 'Failed to publish module')
+                return
+            }
+
+            alert(`Module "${moduleTitle}" published successfully!`)
+            fetchCourse()
+        } catch (e) {
+            console.error(e)
+            alert('Failed to publish module')
+        }
+    }
+
     if (loading) return <div className="p-24">Loading...</div>
     if (!course) return <div className="p-24">Course not found</div>
 
@@ -321,12 +344,37 @@ export default function CourseDetailPage() {
                                         <div className="bg-slate-100 border-b p-4">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex-1">
-                                                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                                                        {parentTopic.order}. {parentTopic.title}
-                                                    </h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-lg font-semibold">
+                                                            {parentTopic.order}. {parentTopic.title}
+                                                        </h3>
+                                                        {parentTopic.is_published && (
+                                                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                                                                <CheckCircle className="h-3 w-3" />
+                                                                Published
+                                                            </span>
+                                                        )}
+                                                        {!parentTopic.is_published && (
+                                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+                                                                Unpublished
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm text-slate-600 mt-1">{parentTopic.description}</p>
                                                 </div>
                                                 <div className="flex gap-2">
+                                                    {!parentTopic.is_published && subTopics.length > 0 &&
+                                                        subTopics.every((t: any) => t.status === 'APPROVED') && (
+                                                            <Button
+                                                                variant="default"
+                                                                size="sm"
+                                                                onClick={() => handlePublishModule(parentTopic.id, parentTopic.title)}
+                                                                className="bg-green-600 hover:bg-green-700"
+                                                            >
+                                                                <CheckCircle className="mr-1 h-4 w-4" />
+                                                                Publish Module
+                                                            </Button>
+                                                        )}
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
