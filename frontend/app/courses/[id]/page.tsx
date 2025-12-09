@@ -23,6 +23,7 @@ export default function CourseDetailPage() {
     const [topics, setTopics] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [generating, setGenerating] = useState(false)
+    const [isPublishing, setIsPublishing] = useState(false)
 
     // Content Dialog State
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -230,6 +231,7 @@ export default function CourseDetailPage() {
     }
 
     const handlePublishModule = async (moduleId: string, moduleTitle: string) => {
+        setIsPublishing(true)
         try {
             const response = await fetch(`http://localhost:8000/courses/${id}/modules/${moduleId}/publish`, {
                 method: 'POST',
@@ -241,20 +243,23 @@ export default function CourseDetailPage() {
             if (!response.ok) {
                 const error = await response.json()
                 alert(error.detail || 'Failed to publish module')
+                setIsPublishing(false)
                 return
             }
 
             const result = await response.json()
 
-            // Refresh course data to update UI
-            setLoading(true)
-            await fetchCourse()
+            // Re-fetch and directly update state to trigger re-render
+            const data = await getCourse(id)
+            setCourse(data)
+            if (data.topics) setTopics(data.topics)
 
-            // Show success message after refresh
             alert(`Module "${moduleTitle}" published successfully!`)
         } catch (e) {
             console.error(e)
             alert('Failed to publish module')
+        } finally {
+            setIsPublishing(false)
         }
     }
 
@@ -376,9 +381,10 @@ export default function CourseDetailPage() {
                                                                 size="sm"
                                                                 onClick={() => handlePublishModule(parentTopic.id, parentTopic.title)}
                                                                 className="bg-green-600 hover:bg-green-700"
+                                                                disabled={isPublishing}
                                                             >
                                                                 <CheckCircle className="mr-1 h-4 w-4" />
-                                                                Publish Module
+                                                                {isPublishing ? 'Publishing...' : 'Publish Module'}
                                                             </Button>
                                                         )}
                                                     <Button
