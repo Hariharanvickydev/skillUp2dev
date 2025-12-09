@@ -348,7 +348,9 @@ export default function CourseDetailPage() {
                         {topics
                             .filter((topic: any) => !topic.parent_topic_id)
                             .map((parentTopic: any) => {
-                                const subTopics = topics.filter((t: any) => t.parent_topic_id === parentTopic.id)
+                                const subTopics = topics
+                                    .filter((t: any) => t.parent_topic_id === parentTopic.id)
+                                    .sort((a: any, b: any) => a.order - b.order)
 
                                 return (
                                     <div key={parentTopic.id} className="border rounded-lg overflow-hidden">
