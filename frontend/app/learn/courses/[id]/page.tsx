@@ -493,8 +493,8 @@ export default function CourseDetailPage() {
                                                             <button
                                                                 onClick={() => handleToggleComplete(topic.id, completed)}
                                                                 className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${completed
-                                                                        ? 'bg-green-500 border-green-500'
-                                                                        : 'border-gray-300 hover:border-green-400'
+                                                                    ? 'bg-green-500 border-green-500'
+                                                                    : 'border-gray-300 hover:border-green-400'
                                                                     }`}
                                                             >
                                                                 {completed && (
@@ -508,7 +508,6 @@ export default function CourseDetailPage() {
                                                                         • {topic.title}
                                                                     </span>
                                                                 </div>
-                                                                <p className="text-xs text-slate-500 mt-1">{topic.description}</p>
                                                             </div>
 
                                                             <div className="flex gap-2">
