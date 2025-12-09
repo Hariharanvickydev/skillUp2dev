@@ -230,6 +230,7 @@ export default function CourseDetailPage() {
     }
 
     const handlePublishModule = async (moduleId: string, moduleTitle: string) => {
+        setLoading(true) // Show loading state
         try {
             const response = await fetch(`http://localhost:8000/courses/${id}/modules/${moduleId}/publish`, {
                 method: 'POST',
@@ -241,14 +242,20 @@ export default function CourseDetailPage() {
             if (!response.ok) {
                 const error = await response.json()
                 alert(error.detail || 'Failed to publish module')
+                setLoading(false)
                 return
             }
 
+            const result = await response.json()
             alert(`Module "${moduleTitle}" published successfully!`)
-            fetchCourse()
+
+            // Force refresh to update UI
+            await fetchCourse()
         } catch (e) {
             console.error(e)
             alert('Failed to publish module')
+        } finally {
+            setLoading(false)
         }
     }
 
