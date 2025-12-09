@@ -323,11 +323,18 @@ def publish_module(
     
     # All validations passed, publish the module
     module.is_published = True
+    
+    # Auto-publish course when first module is published (if not already published)
+    if course.status != "PUBLISHED":
+        course.status = "PUBLISHED"
+    
     db.commit()
     db.refresh(module)
+    db.refresh(course)
     
     return {
         "message": f"Module '{module.title}' published successfully",
-        "module": module
+        "module": module,
+        "course_published": course.status == "PUBLISHED"
     }
 
