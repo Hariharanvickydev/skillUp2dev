@@ -11,6 +11,7 @@ import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { approveTopic } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function AdminTopicContentPage() {
     const params = useParams()
@@ -68,9 +69,10 @@ export default function AdminTopicContentPage() {
             setIsRegenerateFeedbackOpen(false)
             setRegenerateFeedback('')
             await fetchData()
+            toast.success('Content generated successfully!')
         } catch (error) {
             console.error('Error generating content:', error)
-            alert('Failed to generate content')
+            toast.error('Failed to generate content')
         } finally {
             setGenerating(false)
         }
@@ -80,10 +82,10 @@ export default function AdminTopicContentPage() {
         try {
             await approveTopic(topicId)
             await fetchData()
-            alert('Topic approved successfully!')
+            toast.success('Topic approved successfully!')
         } catch (error) {
             console.error('Error approving topic:', error)
-            alert('Failed to approve topic')
+            toast.error('Failed to approve topic')
         }
     }
 
@@ -93,7 +95,7 @@ export default function AdminTopicContentPage() {
         try {
             const element = document.querySelector('.prose')
             if (!element) {
-                alert('Content not found')
+                toast.error('Content not found')
                 return
             }
 
@@ -182,7 +184,7 @@ export default function AdminTopicContentPage() {
             const printWindow = window.open(url, '_blank')
 
             if (!printWindow) {
-                alert('Please allow popups to export PDF')
+                toast.error('Please allow popups to export PDF')
                 URL.revokeObjectURL(url)
                 return
             }
@@ -194,12 +196,12 @@ export default function AdminTopicContentPage() {
             }
         } catch (error) {
             console.error('Error exporting PDF:', error)
-            alert('Failed to export PDF')
+            toast.error('Failed to export PDF')
         }
     }
 
-    if (loading) return <div className="p-24">Loading...</div>
-    if (!topic || !course) return <div className="p-24">Topic not found</div>
+    if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading...</div>
+    if (!topic || !course) return <div className="p-4 sm:p-8 md:p-12">Topic not found</div>
 
     return (
         <main className="flex min-h-screen flex-col bg-slate-50">

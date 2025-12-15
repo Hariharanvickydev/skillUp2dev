@@ -48,4 +48,4 @@ echo ""
 
 # Start the backend
 cd backend
-python -m uvicorn app.main:app --reload
+./venv/bin/python -m uvicorn app.main:app --reload

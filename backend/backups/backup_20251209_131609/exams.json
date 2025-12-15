@@ -1,0 +1,126 @@
+[
+  {
+    "id": "61a7bfbb-0aaa-4fbf-9a82-ae8ec6b4700e",
+    "topic_id": "72cbd704-9294-4f7f-9726-dea125e1c864",
+    "created_by_user_id": "fd927f66-149e-4c3c-ac9b-89681ac52557",
+    "questions": [
+      {
+        "question": "Which data type is used to store a sequence of characters in Python?",
+        "options": [
+          "A. int",
+          "B. float",
+          "C. str",
+          "D. bool"
+        ],
+        "correct_index": 2,
+        "explanation": "The 'str' data type is specifically designed for storing sequences of characters, also known as strings."
+      },
+      {
+        "question": "What will be the output of `print(type(3.14))`?",
+        "options": [
+          "A. <class 'int'>",
+          "B. <class 'str'>",
+          "C. <class 'float'>",
+          "D. <class 'bool'>"
+        ],
+        "correct_index": 2,
+        "explanation": "3.14 is a floating-point number, so the `type()` function will return `<class 'float'>`."
+      },
+      {
+        "question": "Which of the following data types is immutable?",
+        "options": [
+          "A. list",
+          "B. dictionary",
+          "C. tuple",
+          "D. set"
+        ],
+        "correct_index": 2,
+        "explanation": "Tuples are immutable, meaning their values cannot be changed after creation. Lists and dictionaries are mutable."
+      },
+      {
+        "question": "What is the purpose of type conversion in Python?",
+        "options": [
+          "A. To automatically fix errors in the code.",
+          "B. To change the data type of a variable.",
+          "C. To optimize the program's performance.",
+          "D. To define new data types."
+        ],
+        "correct_index": 1,
+        "explanation": "Type conversion allows you to explicitly change the data type of a variable, for example, converting a string to an integer."
+      },
+      {
+        "question": "What will be the data type of the variable `result` after executing `result = 5 / 2`?",
+        "options": [
+          "A. int",
+          "B. float",
+          "C. str",
+          "D. bool"
+        ],
+        "correct_index": 1,
+        "explanation": "In Python, division (using `/`) always returns a float, even if both operands are integers."
+      },
+      {
+        "question": "Which of the following is a valid way to create a boolean variable?",
+        "options": [
+          "A. flag = 1",
+          "B. flag = 'true'",
+          "C. flag = True",
+          "D. flag = '1'"
+        ],
+        "correct_index": 2,
+        "explanation": "Boolean variables in Python must be assigned either `True` or `False` (case-sensitive)."
+      },
+      {
+        "question": "What is the correct way to convert the string '100' to an integer?",
+        "options": [
+          "A. int = '100'",
+          "B. string('100')",
+          "C. int('100')",
+          "D. str(100)"
+        ],
+        "correct_index": 2,
+        "explanation": "The `int()` function is used to convert a string representation of an integer into an integer data type."
+      },
+      {
+        "question": "Which of the following is a collection type that stores key-value pairs?",
+        "options": [
+          "A. list",
+          "B. tuple",
+          "C. dictionary",
+          "D. string"
+        ],
+        "correct_index": 2,
+        "explanation": "Dictionaries store data in key-value pairs, allowing you to access values using their corresponding keys."
+      },
+      {
+        "question": "What does it mean that Python is a 'dynamically typed' language?",
+        "options": [
+          "A. The data type of a variable is explicitly declared.",
+          "B. The data type of a variable is determined at compile time.",
+          "C. The data type of a variable is determined at runtime.",
+          "D. Variables must be declared before being used."
+        ],
+        "correct_index": 2,
+        "explanation": "In dynamically typed languages like Python, the data type of a variable is checked during runtime, not during compilation. You don't need to explicitly declare the type."
+      },
+      {
+        "question": "What is the output of the following code? `x = 5; print(type(str(x)))`",
+        "options": [
+          "A. <class 'int'>",
+          "B. <class 'float'>",
+          "C. <class 'str'>",
+          "D. 5"
+        ],
+        "correct_index": 2,
+        "explanation": "The `str(x)` converts the integer `x` into a string. The `type()` function then returns the type of the string, which is `<class 'str'>`."
+      }
+    ],
+    "difficulty": "medium",
+    "duration_minutes": 20,
+    "passing_score": 70,
+    "is_published": true,
+    "is_public": true,
+    "num_attempts": 2,
+    "created_at": "2025-12-09T07:08:58"
+  }
+]

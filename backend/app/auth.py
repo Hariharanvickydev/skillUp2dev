@@ -70,7 +70,8 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    user = db.query(models.User).filter(models.User.id == UUID(user_id)).first()
+    from sqlalchemy.orm import joinedload
+    user = db.query(models.User).options(joinedload(models.User.organization)).filter(models.User.id == UUID(user_id)).first()
     if user is None:
         raise credentials_exception
     
@@ -83,19 +84,49 @@ def get_current_active_user(current_user: models.User = Depends(get_current_user
     return current_user
 
 def require_admin(current_user: models.User = Depends(get_current_active_user)) -> models.User:
-    """Require the current user to be an admin"""
-    if current_user.role != "ADMIN":
+    """
+    Require the current user to be an admin or teacher (Content Editor).
+    Allows SUPER_ADMIN, ORG_ADMIN, DEPT_HEAD, TEACHER.
+    """
+    allowed_roles = [
+        models.UserRole.SUPER_ADMIN, 
+        models.UserRole.ORG_ADMIN, 
+        models.UserRole.DEPT_HEAD, 
+        models.UserRole.TEACHER
+    ]
+    if current_user.role not in allowed_roles:  # Basic string check works if enum values are strings
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
+            detail="Admin/Teacher access required"
         )
     return current_user
 
 def require_consumer(current_user: models.User = Depends(get_current_active_user)) -> models.User:
-    """Require the current user to be a consumer"""
-    if current_user.role != "CONSUMER":
+    """Require the current user to be a student (formerly consumer)"""
+    if current_user.role != models.UserRole.STUDENT:
+        # For now, let's strictly require STUDENT. 
+        # In future, maybe teachers can also view consumer view.
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Consumer access required"
+            detail="Student access required"
+        )
+    return current_user
+
+def require_super_admin(current_user: models.User = Depends(get_current_active_user)) -> models.User:
+    """Require the current user to be a Super Admin"""
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super Admin access required"
+        )
+    return current_user
+
+def require_org_admin(current_user: models.User = Depends(get_current_active_user)) -> models.User:
+    """Require the current user to be an Org Admin or higher"""
+    allowed_roles = [models.UserRole.SUPER_ADMIN, models.UserRole.ORG_ADMIN]
+    if current_user.role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Org Admin access required"
         )
     return current_user

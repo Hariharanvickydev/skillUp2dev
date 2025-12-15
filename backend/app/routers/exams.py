@@ -236,3 +236,51 @@ async def get_topic_exam_library(
         })
     
     return result
+
+@router.get("/org", response_model=List[dict])
+def get_org_exams(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_org_admin)
+):
+    """
+    Get all exams created within the organization.
+    Join Exam -> Topic -> Course -> Organization to verify? 
+    Or mostly likely check created_by_user_id -> User -> Organization
+    """
+    
+    # Simple approach: Find exams created by users in this org
+    # 1. Get all users in org
+    # users = db.query(models.User).filter(models.User.organization_id == current_user.organization_id).all()
+    # user_ids = [u.id for u in users]
+    
+    # 2. Get exams created by these users
+    # exams = db.query(models.Exam).filter(models.Exam.created_by_user_id.in_(user_ids)).all()
+    
+    # Efficient approach: Join
+    exams = db.query(models.Exam).join(models.User, models.Exam.created_by_user_id == models.User.id)\
+        .filter(models.User.organization_id == current_user.organization_id)\
+        .order_by(models.Exam.created_at.desc())\
+        .all()
+
+    results = []
+    for exam in exams:
+        # Get course info via topic
+        topic = db.query(models.Topic).filter(models.Topic.id == exam.topic_id).first()
+        course_title = "Unknown"
+        if topic:
+             course = db.query(models.Course).filter(models.Course.id == topic.course_id).first()
+             if course:
+                 course_title = course.title
+
+        results.append({
+            "id": str(exam.id),
+            "title": f"{topic.title} Exam" if topic else "Untitled Exam",
+            "course": course_title,
+            "type": exam.type if hasattr(exam, 'type') else "Practice Exam", 
+            "status": "Active" if exam.is_published else "Draft",
+            "due_date": "N/A", # Exams don't have due dates in current model yet
+            "attempts": f"{exam.num_attempts}",
+            "avg_score": "Pending" # Need to calc avg from attempts
+        })
+        
+    return results

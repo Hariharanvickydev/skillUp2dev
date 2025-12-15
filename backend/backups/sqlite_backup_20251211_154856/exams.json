@@ -1,0 +1,305 @@
+[
+  {
+    "id": "c5126313-7d19-4a6a-b46f-6115537749f1",
+    "topic_id": "4a488af6-b958-42a9-9441-adc4a23b880e",
+    "created_by_user_id": "fd927f66-149e-4c3c-ac9b-89681ac52557",
+    "questions": [
+      {
+        "question": "What is the primary function of the .NET Framework?",
+        "options": [
+          "A. To provide a managed execution environment for applications.",
+          "B. To create operating systems.",
+          "C. To design computer hardware.",
+          "D. To manage network infrastructure."
+        ],
+        "correct_index": 0,
+        "explanation": "The .NET Framework provides a managed execution environment (CLR) for running applications, including services like JIT compilation, memory management, and exception handling."
+      },
+      {
+        "question": "Which of the following best describes the role of the Common Language Runtime (CLR)?",
+        "options": [
+          "A. It is a set of pre-built classes and interfaces.",
+          "B. It is the managed execution environment for .NET applications.",
+          "C. It is a tool for creating user interfaces.",
+          "D. It is a database management system."
+        ],
+        "correct_index": 1,
+        "explanation": "The CLR is the core of the .NET Framework and provides the managed execution environment, handling JIT compilation, memory management, and other essential services."
+      },
+      {
+        "question": "What does the Just-In-Time (JIT) compiler do in the .NET Framework?",
+        "options": [
+          "A. It compiles source code directly into machine code during development.",
+          "B. It translates Intermediate Language (IL) into native machine code at runtime.",
+          "C. It optimizes code for faster execution after the application is closed.",
+          "D. It manages memory allocation and deallocation."
+        ],
+        "correct_index": 1,
+        "explanation": "The JIT compiler translates IL code into native machine code specific to the operating system and processor architecture just before execution, hence the name 'Just-In-Time'."
+      },
+      {
+        "question": "Which of the following is a key benefit of the .NET Framework's memory management (Garbage Collection)?",
+        "options": [
+          "A. It allows developers to manually allocate and deallocate memory for optimal control.",
+          "B. It automatically manages memory, preventing memory leaks and related issues.",
+          "C. It completely eliminates the need for memory allocation.",
+          "D. It only manages memory for web applications."
+        ],
+        "correct_index": 1,
+        "explanation": "The garbage collector (GC) in the .NET Framework automatically manages memory allocation and deallocation, reducing the risk of memory leaks and simplifying development."
+      },
+      {
+        "question": "What is the purpose of the Framework Class Library (FCL) in .NET?",
+        "options": [
+          "A. To provide a set of tools for debugging code.",
+          "B. To offer a vast collection of pre-built classes, interfaces, and data structures.",
+          "C. To manage the execution of applications.",
+          "D. To define the syntax of the C# language."
+        ],
+        "correct_index": 1,
+        "explanation": "The FCL provides a rich set of reusable components, saving developers significant time and effort by offering pre-built functionalities."
+      },
+      {
+        "question": "Which of the following application types can be developed using the .NET Framework?",
+        "options": [
+          "A. Only web applications.",
+          "B. Only desktop applications.",
+          "C. Only mobile applications.",
+          "D. Desktop, web, and mobile applications (among others)."
+        ],
+        "correct_index": 3,
+        "explanation": "The .NET Framework is versatile and supports the development of a wide range of application types, including desktop (Windows Forms, WPF), web (ASP.NET), mobile (Xamarin/.NET MAUI), and others."
+      },
+      {
+        "question": "What is Intermediate Language (IL) also referred to as?",
+        "options": [
+          "A. Java Bytecode",
+          "B. Assembly Language",
+          "C. Common Intermediate Language (CIL)",
+          "D. Machine Code"
+        ],
+        "correct_index": 2,
+        "explanation": "IL is also known as CIL (Common Intermediate Language). It's the language that C# code is compiled into before being JIT compiled into native machine code."
+      },
+      {
+        "question": "Which component of the .NET Framework is responsible for handling errors and unexpected situations in the code?",
+        "options": [
+          "A. The JIT Compiler",
+          "B. The Framework Class Library (FCL)",
+          "C. The Garbage Collector (GC)",
+          "D. The Exception Handling mechanism in the CLR"
+        ],
+        "correct_index": 3,
+        "explanation": "The CLR provides a robust exception handling mechanism allowing developers to gracefully handle errors and prevent application crashes."
+      },
+      {
+        "question": "Which .NET technology is designed to be cross-platform and open-source?",
+        "options": [
+          "A. .NET Framework",
+          "B. .NET Core",
+          "C. ASP.NET Web Forms",
+          "D. Windows Forms"
+        ],
+        "correct_index": 1,
+        "explanation": ".NET Core was designed from the ground up to be cross-platform, enabling applications to run on various operating systems, and it's also open-source, fostering community contributions."
+      },
+      {
+        "question": "What is a key function of thread management within the .NET CLR?",
+        "options": [
+          "A. To create applications that can only perform one task at a time.",
+          "B. To limit the resources allocated to each application.",
+          "C. To allow applications to perform multiple tasks concurrently.",
+          "D. To ensure that all applications run with the same security privileges."
+        ],
+        "correct_index": 2,
+        "explanation": "The CLR's thread management allows developers to implement multithreading, enabling applications to execute multiple tasks simultaneously, thereby improving performance and responsiveness."
+      }
+    ],
+    "difficulty": "medium",
+    "duration_minutes": 20,
+    "passing_score": 70,
+    "is_published": true,
+    "is_public": true,
+    "num_attempts": 0,
+    "created_at": "2025-12-09T09:08:56"
+  },
+  {
+    "id": "0546739b-13dc-4f35-a450-3a8376ec8711",
+    "topic_id": "8b0bb8d2-3344-446c-a3e4-dab2ebc8370e",
+    "created_by_user_id": "fd927f66-149e-4c3c-ac9b-89681ac52557",
+    "questions": [
+      {
+        "question": "What is the primary purpose of using the `out` parameter in C#?",
+        "options": [
+          "A. To pass a variable by reference and ensure it's modified by the method.",
+          "B. To return multiple values from a method.",
+          "C. To prevent null reference exceptions within a method.",
+          "D. To define constant values within a method scope."
+        ],
+        "correct_index": 1,
+        "explanation": "The `out` parameter's main purpose is to allow a method to 'return' multiple values by modifying variables passed as `out` parameters."
+      },
+      {
+        "question": "Which of the following statements is true regarding the initialization of `out` parameters?",
+        "options": [
+          "A. `out` parameters must be initialized before being passed to the method.",
+          "B. `out` parameters must be initialized inside the method if a default value is needed.",
+          "C. `out` parameters do not need to be initialized before being passed to the method, but the method must initialize them.",
+          "D. `out` parameters are automatically initialized to `null` before the method is called."
+        ],
+        "correct_index": 2,
+        "explanation": "`out` parameters do not require initialization before being passed to the method. The method is responsible for assigning a value to the `out` parameter before it returns."
+      },
+      {
+        "question": "What happens if an `out` parameter is not assigned a value within the method before the method exits?",
+        "options": [
+          "A. The `out` parameter retains its original value.",
+          "B. The program compiles and runs without error, assigning a default value to the `out` parameter.",
+          "C. A runtime exception is thrown.",
+          "D. A compile-time error occurs."
+        ],
+        "correct_index": 3,
+        "explanation": "The compiler enforces that `out` parameters are assigned a value before the method exits. Failure to do so results in a compile-time error."
+      },
+      {
+        "question": "Consider the following code: `public void MyMethod(out int result) { result = 10; }`. How would you correctly call this method?",
+        "options": [
+          "A. `int number = MyMethod(result);`",
+          "B. `MyMethod(int result = number);`",
+          "C. `int number; MyMethod(out number);`",
+          "D. `int number = 5; MyMethod(number);`"
+        ],
+        "correct_index": 2,
+        "explanation": "The correct way to call a method with an `out` parameter is to declare a variable of the appropriate type and then pass it to the method using the `out` keyword: `int number; MyMethod(out number);`"
+      },
+      {
+        "question": "What is the key difference between `ref` and `out` parameters?",
+        "options": [
+          "A. `ref` parameters are used for value types, while `out` parameters are used for reference types.",
+          "B. `ref` parameters must be initialized before being passed to the method, while `out` parameters do not.",
+          "C. `out` parameters can only be used with methods that return a boolean value.",
+          "D. There is no difference; `ref` and `out` are interchangeable."
+        ],
+        "correct_index": 1,
+        "explanation": "The crucial difference is that `ref` parameters require initialization before being passed to the method, whereas `out` parameters do not. The method using `out` is responsible for initializing the parameter."
+      },
+      {
+        "question": "In the context of `int.TryParse()`, what does the `out` parameter provide?",
+        "options": [
+          "A. It provides the string to be parsed.",
+          "B. It provides a boolean indicating whether the parsing was successful.",
+          "C. It provides the parsed integer value if the parsing was successful, otherwise a default value.",
+          "D. It provides both the parsed integer value and a boolean indicating success."
+        ],
+        "correct_index": 2,
+        "explanation": "In `int.TryParse()`, the `out` parameter receives the parsed integer value when the parsing is successful. If parsing fails, the `out` parameter receives a default value (0 for `int`). The boolean return value indicates success or failure."
+      },
+      {
+        "question": "Which of the following code snippets demonstrates the correct usage of an `out` parameter?",
+        "options": [
+          "A. `void MyMethod(out int x) { } int y = MyMethod(x);`",
+          "B. `void MyMethod(int x) { x = 10; } int y = 5; MyMethod(y);`",
+          "C. `void MyMethod(out int x) { x = 10; } int y; MyMethod(out y);`",
+          "D. `void MyMethod(ref int x) { x = 10; } int y; MyMethod(out y);`"
+        ],
+        "correct_index": 2,
+        "explanation": "The correct snippet is `void MyMethod(out int x) { x = 10; } int y; MyMethod(out y);` because it declares the parameter as `out` in both the method definition and the method call, and initializes the `out` parameter within the method."
+      },
+      {
+        "question": "Consider the following code: `public bool Calculate(int a, int b, out int sum, out int product) { sum = a + b; product = a * b; return true; }`. How many values does the `Calculate` method effectively return?",
+        "options": [
+          "A. One (the boolean value).",
+          "B. Two (the sum and the product).",
+          "C. Three (the boolean value, the sum, and the product).",
+          "D. Four (the inputs a and b, the sum and the product)."
+        ],
+        "correct_index": 2,
+        "explanation": "The method returns a boolean value and modifies two `out` parameters (sum and product), effectively returning three values."
+      },
+      {
+        "question": "If a method has multiple `out` parameters, what is the order in which they are returned?",
+        "options": [
+          "A. The order is determined by the size of the data types (largest first).",
+          "B. The order is determined by the compiler based on optimization.",
+          "C. The order is not guaranteed and should not be relied upon.",
+          "D. The order is determined by the order in which they are declared in the method signature."
+        ],
+        "correct_index": 3,
+        "explanation": "The `out` parameters are 'returned' in the order they appear in the method signature.  You can rely on this order."
+      },
+      {
+        "question": "What is the purpose of the `out` keyword in the method *call*, not just the method definition?",
+        "options": [
+          "A. It specifies that the passed variable will be modified by the method.",
+          "B. It allows the method to access the variable's original value.",
+          "C. It prevents the method from modifying the variable.",
+          "D. It allows the method to return a value by reference."
+        ],
+        "correct_index": 0,
+        "explanation": "The `out` keyword in the method call is a signal to the caller that the variable passed will be modified within the called method."
+      },
+      {
+        "question": "Which of the following best describes a situation where using an `out` parameter would be most appropriate?",
+        "options": [
+          "A. When you want to pass a large object to a method and avoid copying it.",
+          "B. When you want a method to update the value of a parameter, but the parameter might not have a value to begin with.",
+          "C. When you want to ensure that a method only receives a read-only copy of a parameter.",
+          "D. When you need to pass an array of values to a method."
+        ],
+        "correct_index": 1,
+        "explanation": "The `out` parameter is well-suited for scenarios where you want a method to initialize or update the value of a parameter, particularly when the parameter may not have an initial value or a meaningful default."
+      },
+      {
+        "question": "Given the method signature: `void ProcessData(string input, out bool success, out int result)`. If `input` is invalid, how should the method handle `success` and `result`?",
+        "options": [
+          "A. Set `success` to `true` and `result` to 0.",
+          "B. Leave `success` and `result` unassigned.",
+          "C. Set `success` to `false` and `result` to a default value (e.g., 0).",
+          "D. Throw an exception."
+        ],
+        "correct_index": 2,
+        "explanation": "When `input` is invalid, `success` should be set to `false` to indicate failure, and `result` should be assigned a default value (0 for int) to fulfill the requirement that `out` parameters *must* be assigned a value."
+      },
+      {
+        "question": "Which of the following statements about `out` parameters and exception handling is most accurate?",
+        "options": [
+          "A. If a method throws an exception, it is not necessary to assign values to `out` parameters.",
+          "B. `out` parameters automatically revert to their original values if an exception is thrown.",
+          "C. Even if a method throws an exception, it is still necessary to assign values to all `out` parameters within a `try...finally` block.",
+          "D. The use of `out` parameters prevents exceptions from being thrown."
+        ],
+        "correct_index": 2,
+        "explanation": "Even if an exception is thrown, the compiler requires that all `out` parameters must be assigned a value. Using a `try...finally` block ensures that assignments to `out` parameters always occur, even in exceptional circumstances."
+      },
+      {
+        "question": "Why might using multiple `out` parameters in a method be less desirable than returning a custom object or tuple in modern C#?",
+        "options": [
+          "A. `out` parameters are inherently slower than returning objects or tuples.",
+          "B. Objects and tuples provide better readability and maintainability because they can have named properties.",
+          "C. `out` parameters are not supported in newer versions of C#.",
+          "D. Returning objects or tuples automatically handles exception handling."
+        ],
+        "correct_index": 1,
+        "explanation": "While `out` parameters serve a purpose, returning a custom object or a tuple (especially with named fields) generally leads to code that is more readable and easier to understand because it provides context and meaning to the returned values through named properties."
+      },
+      {
+        "question": "Consider a method `bool TryGetValue(string key, out string value)`. If the `key` exists, `value` is set to the corresponding value, and the method returns `true`. If the `key` doesn't exist, what value should `value` be set to and what should the method return?",
+        "options": [
+          "A. `value` = null; return true;",
+          "B. `value` = \"\"; return false;",
+          "C. `value` = null; return false;",
+          "D. Throw an exception because the key does not exist"
+        ],
+        "correct_index": 2,
+        "explanation": "The method should return `false` to indicate that the key doesn't exist, and `value` should be set to `null`.  Setting value to null still assigns it a value as the compiler requires and indicates no valid value was returned for `value`."
+      }
+    ],
+    "difficulty": "hard",
+    "duration_minutes": 30,
+    "passing_score": 70,
+    "is_published": true,
+    "is_public": true,
+    "num_attempts": 0,
+    "created_at": "2025-12-09T09:23:00"
+  }
+]

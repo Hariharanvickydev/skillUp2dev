@@ -18,10 +18,16 @@ def signup(user_data: schemas.UserCreate, db: Session = Depends(database.get_db)
         )
     
     # Validate role
-    if user_data.role not in ["ADMIN", "CONSUMER"]:
+    if user_data.role not in [
+        models.UserRole.SUPER_ADMIN, 
+        models.UserRole.ORG_ADMIN, 
+        models.UserRole.DEPT_HEAD, 
+        models.UserRole.TEACHER, 
+        models.UserRole.STUDENT
+    ]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role. Must be ADMIN or CONSUMER"
+            detail="Invalid role"
         )
     
     # Create new user
@@ -42,7 +48,11 @@ def signup(user_data: schemas.UserCreate, db: Session = Depends(database.get_db)
         data={"sub": str(db_user.id), "role": db_user.role}
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user_role": db_user.role
+    }
 
 @router.post("/login", response_model=schemas.Token)
 def login(
@@ -71,14 +81,30 @@ def login(
         data={"sub": str(user.id), "role": user.role}
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user_role": user.role,
+        "force_password_reset": user.force_password_reset
+    }
 
 @router.get("/me", response_model=schemas.User)
 def get_current_user_info(current_user: models.User = Depends(auth.get_current_active_user)):
     """Get current user information"""
     return current_user
 
-@router.post("/logout")
-def logout():
-    """Logout (client-side token removal)"""
     return {"message": "Successfully logged out"}
+
+@router.post("/change-password")
+def change_password(
+    password_data: schemas.PasswordChange,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """Change current user's password"""
+    current_user.password_hash = auth.hash_password(password_data.new_password)
+    current_user.force_password_reset = False
+    current_user.updated_at = database.datetime.utcnow()
+    
+    db.commit()
+    return {"message": "Password changed successfully"}

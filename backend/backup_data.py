@@ -27,8 +27,8 @@ def serialize_datetime(obj):
     raise TypeError(f"Type {type(obj)} not serializable")
 
 def backup_users(db: Session):
-    """Backup admin users"""
-    users = db.query(models.User).filter(models.User.role == "ADMIN").all()
+    """Backup all users"""
+    users = db.query(models.User).all()
     return [{
         "id": str(user.id),
         "email": user.email,
@@ -114,7 +114,7 @@ def create_backup(output_dir: str = "backups"):
         users_data = backup_users(db)
         with open(os.path.join(backup_dir, "users.json"), "w") as f:
             json.dump(users_data, f, indent=2)
-        print(f"  ✓ Backed up {len(users_data)} admin users")
+        print(f"  ✓ Backed up {len(users_data)} users")
         
         print("Backing up courses...")
         courses_data = backup_courses(db)

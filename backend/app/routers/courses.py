@@ -22,8 +22,22 @@ def read_courses(
     skip: int = 0,
     limit: int = 100,
     published_only: bool = False,
-    db: Session = Depends(database.get_db)
+    organization_id: Optional[UUID] = None,
+    db: Session = Depends(database.get_db),
+    current_user: Optional[models.User] = Depends(auth.get_current_active_user)
 ):
+    """List courses (public endpoint, optionally filter by published or org)"""
+    
+    # If Org Admin, default to their org if not specified? 
+    # Actually, for Org Admin view we might want to see THEIR courses.
+    if current_user and current_user.role == models.UserRole.ORG_ADMIN:
+        # If they specifically ask for another org, block it? 
+        # For now, let's just allow filtering.
+        if not organization_id:
+             organization_id = current_user.organization_id
+
+    courses = crud.get_courses(db, skip=skip, limit=limit, published_only=published_only, organization_id=organization_id)
+    return courses
     """List courses (public endpoint, optionally filter by published)"""
     courses = crud.get_courses(db, skip=skip, limit=limit, published_only=published_only)
     return courses

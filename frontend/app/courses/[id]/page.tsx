@@ -13,6 +13,7 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { toast } from "sonner"
 
 export default function CourseDetailPage() {
     const params = useParams()
@@ -118,9 +119,10 @@ export default function CourseDetailPage() {
             await approveTopic(selectedTopic.id)
             setIsDialogOpen(false)
             fetchCourse()
+            toast.success('Content approved successfully!')
         } catch (e) {
             console.error(e)
-            alert("Failed to approve")
+            toast.error('Failed to approve content')
         }
     }
 
@@ -134,9 +136,10 @@ export default function CourseDetailPage() {
             })
             setIsEditDialogOpen(false)
             fetchCourse()
+            toast.success('Topic updated successfully!')
         } catch (e) {
             console.error(e)
-            alert("Failed to update topic")
+            toast.error('Failed to update topic')
         }
     }
 
@@ -147,9 +150,10 @@ export default function CourseDetailPage() {
             setIsDeleteDialogOpen(false)
             setTopicToDelete(null)
             fetchCourse()
+            toast.success('Topic deleted successfully!')
         } catch (e) {
             console.error(e)
-            alert("Failed to delete topic")
+            toast.error('Failed to delete topic')
         }
     }
 
@@ -172,9 +176,10 @@ export default function CourseDetailPage() {
             setParentTopicForSubtopic(null)
             setNewTopicData({ title: "", description: "", order: topics.length + 1 })
             fetchCourse()
+            toast.success('Topic added successfully!')
         } catch (e) {
             console.error(e)
-            alert("Failed to add topic")
+            toast.error('Failed to add topic')
         }
     }
 
@@ -184,9 +189,10 @@ export default function CourseDetailPage() {
             await generateTopics(id)
             setIsRegenerateDialogOpen(false)
             fetchCourse()
+            toast.success('Topics regenerated successfully!')
         } catch (e) {
             console.error(e)
-            alert("Failed to generate topics")
+            toast.error('Failed to generate topics')
         } finally {
             setGenerating(false)
         }
@@ -203,15 +209,15 @@ export default function CourseDetailPage() {
 
             if (!response.ok) {
                 const error = await response.json()
-                alert(error.detail || 'Failed to publish course')
+                toast.error(error.detail || 'Failed to publish course')
                 return
             }
 
-            alert('Course published successfully!')
+            toast.success('Course published successfully!')
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert('Failed to publish course')
+            toast.error('Failed to publish course')
         }
     }
 
@@ -223,10 +229,11 @@ export default function CourseDetailPage() {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             })
+            toast.success('Course deleted successfully!')
             router.push('/')
         } catch (e) {
             console.error(e)
-            alert("Failed to delete course")
+            toast.error('Failed to delete course')
         }
     }
 
@@ -242,7 +249,7 @@ export default function CourseDetailPage() {
 
             if (!response.ok) {
                 const error = await response.json()
-                alert(error.detail || 'Failed to publish module')
+                toast.error(error.detail || 'Failed to publish module')
                 setIsPublishing(false)
                 return
             }
@@ -254,55 +261,57 @@ export default function CourseDetailPage() {
             setCourse(data)
             if (data.topics) setTopics(data.topics)
 
-            alert(`Module "${moduleTitle}" published successfully!`)
+            toast.success(`Module "${moduleTitle}" published successfully!`)
         } catch (e) {
             console.error(e)
-            alert('Failed to publish module')
+            toast.error('Failed to publish module')
         } finally {
             setIsPublishing(false)
         }
     }
 
-    if (loading) return <div className="p-24">Loading...</div>
-    if (!course) return <div className="p-24">Course not found</div>
+    if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading...</div>
+    if (!course) return <div className="p-4 sm:p-8 md:p-12">Course not found</div>
 
     return (
-        <main className="flex min-h-screen flex-col p-24 bg-slate-50">
+        <main className="flex min-h-screen flex-col p-4 sm:p-6 md:p-8 lg:p-12 bg-slate-50">
             <div className="max-w-6xl mx-auto w-full">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+                    <div className="flex items-start gap-3 sm:gap-4 w-full sm:w-auto">
+                        <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="flex-shrink-0 mt-1">
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-bold text-slate-900">{course.title}</h1>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
+                            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 break-words leading-tight">{course.title}</h1>
                             {course.status === 'PUBLISHED' && (
-                                <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full flex items-center gap-1">
-                                    <CheckCircle className="h-4 w-4" />
+                                <span className="px-2 sm:px-3 py-1 bg-green-100 text-green-700 text-xs sm:text-sm font-semibold rounded-full flex items-center gap-1">
+                                    <CheckCircle className="h-3 sm:h-4 w-3 sm:w-4" />
                                     Published
                                 </span>
                             )}
                             {course.status === 'COMPLETED' && (
-                                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full">
+                                <span className="px-2 sm:px-3 py-1 bg-blue-100 text-blue-700 text-xs sm:text-sm font-semibold rounded-full">
                                     Completed
                                 </span>
                             )}
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                         {course.status === 'COMPLETED' && (
                             <Button
                                 onClick={() => handlePublishCourse()}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none"
                             >
                                 <CheckCircle className="mr-2 h-4 w-4" />
-                                Publish Course
+                                <span className="hidden sm:inline">Publish Course</span>
+                                <span className="sm:hidden">Publish</span>
                             </Button>
                         )}
-                        <Button variant="destructive" onClick={() => setIsDeleteCourseDialogOpen(true)}>
+                        <Button variant="destructive" onClick={() => setIsDeleteCourseDialogOpen(true)} className="flex-1 sm:flex-none">
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Course
+                            <span className="hidden sm:inline">Delete Course</span>
+                            <span className="sm:hidden">Delete</span>
                         </Button>
                     </div>
                 </div>
@@ -329,12 +338,12 @@ export default function CourseDetailPage() {
 
                 {/* Topic Management Buttons */}
                 {topics.length > 0 && (
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => { setParentTopicForSubtopic(null); setIsAddDialogOpen(true); }}>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        <Button variant="outline" onClick={() => { setParentTopicForSubtopic(null); setIsAddDialogOpen(true); }} className="flex-1 sm:flex-none">
                             <Plus className="mr-2 h-4 w-4" />
                             Add Module
                         </Button>
-                        <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(true)}>
+                        <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(true)} className="flex-1 sm:flex-none">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Regenerate All
                         </Button>
@@ -344,7 +353,7 @@ export default function CourseDetailPage() {
                 {/* Topics List */}
                 {topics.length > 0 && (
                     <div className="grid gap-4">
-                        <h2 className="text-xl font-semibold">Course Outline</h2>
+                        <h2 className="text-lg sm:text-xl font-semibold">Course Outline</h2>
                         {topics
                             .filter((topic: any) => !topic.parent_topic_id)
                             .map((parentTopic: any) => {
@@ -354,11 +363,11 @@ export default function CourseDetailPage() {
 
                                 return (
                                     <div key={parentTopic.id} className="border rounded-lg overflow-hidden">
-                                        <div className="bg-slate-100 border-b p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="text-lg font-semibold">
+                                        <div className="bg-slate-100 border-b p-3 sm:p-4">
+                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                                <div className="flex-1 w-full sm:w-auto">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <h3 className="text-base sm:text-lg font-semibold break-words">
                                                             {parentTopic.order}. {parentTopic.title}
                                                         </h3>
                                                         {parentTopic.is_published && (
@@ -373,20 +382,21 @@ export default function CourseDetailPage() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className="text-sm text-slate-600 mt-1">{parentTopic.description}</p>
+                                                    <p className="text-xs sm:text-sm text-slate-600 mt-1">{parentTopic.description}</p>
                                                 </div>
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                                     {!parentTopic.is_published && subTopics.length > 0 &&
                                                         subTopics.every((t: any) => t.status === 'APPROVED') && (
                                                             <Button
                                                                 variant="default"
                                                                 size="sm"
                                                                 onClick={() => handlePublishModule(parentTopic.id, parentTopic.title)}
-                                                                className="bg-green-600 hover:bg-green-700"
+                                                                className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none"
                                                                 disabled={isPublishing}
                                                             >
                                                                 <CheckCircle className="mr-1 h-4 w-4" />
-                                                                {isPublishing ? 'Publishing...' : 'Publish Module'}
+                                                                <span className="hidden sm:inline">{isPublishing ? 'Publishing...' : 'Publish Module'}</span>
+                                                                <span className="sm:hidden">{isPublishing ? 'Publishing...' : 'Publish'}</span>
                                                             </Button>
                                                         )}
                                                     <Button
@@ -397,9 +407,11 @@ export default function CourseDetailPage() {
                                                             setNewTopicData({ title: "", description: "", order: subTopics.length + 1 });
                                                             setIsAddDialogOpen(true);
                                                         }}
+                                                        className="flex-1 sm:flex-none"
                                                     >
                                                         <Plus className="mr-1 h-4 w-4" />
-                                                        Add Sub-Topic
+                                                        <span className="hidden sm:inline">Add Sub-Topic</span>
+                                                        <span className="sm:hidden">Add</span>
                                                     </Button>
                                                     <Button variant="ghost" size="icon" onClick={() => { setEditingTopic(parentTopic); setIsEditDialogOpen(true); }}>
                                                         <Pencil className="h-4 w-4" />
@@ -414,17 +426,17 @@ export default function CourseDetailPage() {
                                         {subTopics.length > 0 && (
                                             <div className="p-4 space-y-2">
                                                 {subTopics.map((topic: any) => (
-                                                    <div key={topic.id} className="flex items-center justify-between p-3 bg-white rounded border hover:shadow-sm transition-shadow">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-medium">• {topic.title}</span>
+                                                    <div key={topic.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-white rounded border hover:shadow-sm transition-shadow">
+                                                        <div className="flex-1 w-full sm:w-auto">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="text-sm font-medium break-words">• {topic.title}</span>
                                                                 {topic.status === 'APPROVED' && (
                                                                     <CheckCircle className="h-4 w-4 text-green-600" />
                                                                 )}
                                                             </div>
                                                             <p className="text-xs text-slate-500 mt-1">{topic.description}</p>
                                                         </div>
-                                                        <div className="flex gap-2">
+                                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                                             <Button variant="ghost" size="icon" onClick={() => { setEditingTopic(topic); setIsEditDialogOpen(true); }}>
                                                                 <Pencil className="h-4 w-4" />
                                                             </Button>
@@ -435,6 +447,7 @@ export default function CourseDetailPage() {
                                                                 variant="outline"
                                                                 size="sm"
                                                                 onClick={() => router.push(`/courses/${id}/topics/${topic.id}`)}
+                                                                className="flex-1 sm:flex-none"
                                                             >
                                                                 <FileText className="mr-2 h-4 w-4" />
                                                                 {topic.status === 'APPROVED' ? "Review" : "Generate"}
