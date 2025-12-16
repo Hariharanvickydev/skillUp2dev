@@ -1,10 +1,28 @@
 "use client";
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, BookOpen, Clock, BarChart2, MoreHorizontal, Import } from "lucide-react";
+import { 
+    Book, 
+    Search, 
+    MoreHorizontal, 
+    Import, 
+    Layers, 
+    Clock, 
+    BarChart2, 
+    BookOpen, 
+    Star, 
+    Plus, 
+    Sparkles, 
+    GraduationCap,
+    Users
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     DropdownMenu,
@@ -12,13 +30,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from '@/contexts/AuthContext';
-import axios from 'axios';
-import { toast } from 'sonner';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-import { useRouter } from 'next/navigation';
 
 export default function CoursesPage() {
     const { token } = useAuth();
@@ -54,117 +67,190 @@ export default function CoursesPage() {
     const publishedCourses = filteredCourses.filter((c: any) => c.status === 'PUBLISHED' || c.status === 'PARTIALLY_PUBLISHED');
     const draftCourses = filteredCourses.filter((c: any) => c.status !== 'PUBLISHED' && c.status !== 'PARTIALLY_PUBLISHED');
 
-    const CourseCard = ({ course }: { course: any }) => (
-        <Card
-            className="flex flex-col overflow-hidden hover:shadow-lg transition-all duration-200 border-slate-200 cursor-pointer group/card"
-            onClick={() => router.push(`/org/courses/${course.id}`)}
-        >
-            <div className="h-32 bg-slate-100 relative group">
-                <div className="absolute inset-0 flex items-center justify-center text-slate-300">
-                    <BookOpen className="h-12 w-12" />
-                </div>
-                {/* Overlay on hover */}
-                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/card:opacity-100 transition-opacity" />
-
-                <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur-sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/org/courses/${course.id}`)}>Edit Curriculum</DropdownMenuItem>
-                            <DropdownMenuItem>Assign Teacher</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-            <CardHeader className="p-4 pb-2">
-                <div className="flex justify-between items-start gap-2">
-                    <Badge variant={course.status === 'PUBLISHED' ? 'default' : 'secondary'} className="mb-2">
-                        {course.status}
-                    </Badge>
-                </div>
-                <CardTitle className="line-clamp-1 text-lg group-hover/card:text-indigo-600 transition-colors">{course.title}</CardTitle>
-                <CardDescription className="line-clamp-2 text-xs mt-1">
-                    {course.description || "No description available."}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 pt-2 flex-grow">
-                <div className="flex items-center gap-4 text-xs text-slate-500 mt-2">
-                    <div className="flex items-center gap-1">
-                        <BookOpen className="h-3 w-3" />
-                        <span>Modules</span>
-                    </div>
-                </div>
-            </CardContent>
-            <CardFooter className="p-4 pt-0 border-t border-slate-100 bg-slate-50/50 flex gap-2">
-                <Button variant="ghost" size="sm" className="w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
-                    <BarChart2 className="h-3 w-3 mr-2" /> View Analytics
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-
     return (
-        <div className="p-8 space-y-8 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Courses</h1>
-                    <p className="text-slate-500 mt-1">
-                        Manage your course catalog and curriculum.
-                    </p>
+        <div className="max-w-7xl mx-auto p-6 lg:p-10 space-y-8 pb-20">
+            {/* Header Section */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 text-white shadow-xl shadow-indigo-900/20">
+                <div className="absolute top-0 right-0 -mt-20 -mr-20 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-80 w-80 rounded-full bg-purple-500/20 blur-3xl"></div>
+
+                <div className="relative z-10">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                        <div className="space-y-2">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-semibold backdrop-blur-md">
+                                <GraduationCap className="h-3.5 w-3.5" /> Learning Management
+                            </div>
+                            <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
+                            <p className="text-indigo-200 text-lg max-w-2xl">
+                                Manage and track the curriculum for your organization.
+                            </p>
+                        </div>
+                        <Button
+                            onClick={() => router.push('/org/library')}
+                            className="bg-white text-indigo-900 hover:bg-indigo-50 hover:text-indigo-950 font-semibold shadow-lg shadow-indigo-900/50 border-0"
+                            size="lg"
+                        >
+                            <Import className="mr-2 h-5 w-5" /> Import from Library
+                        </Button>
+                    </div>
+
+                     {/* Search Bar - Glassmorphism */}
+                    <div className="mt-8 bg-white/10 backdrop-blur-md rounded-2xl p-2 border border-white/10 flex flex-col md:flex-row gap-4 max-w-2xl">
+                        <div className="flex-1 relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-200 group-focus-within:text-white transition-colors" />
+                            <Input
+                                placeholder="Search your courses..."
+                                className="pl-12 border-0 bg-transparent h-12 text-base text-white placeholder:text-indigo-200/60 focus-visible:ring-0"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </div>
-                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => router.push('/org/library')}>
-                    <Import className="h-4 w-4 mr-2" /> Import from Library
-                </Button>
             </div>
 
-            <Tabs defaultValue="published" className="space-y-6">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <TabsList className="bg-slate-100 p-1 rounded-xl">
-                        <TabsTrigger value="published" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Published Courses</TabsTrigger>
-                        <TabsTrigger value="drafts" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Imported / Drafts</TabsTrigger>
-                    </TabsList>
+            <Tabs defaultValue="published" className="space-y-8">
+                <TabsList className="bg-slate-100/50 p-1 rounded-xl border border-slate-200 inline-flex">
+                    <TabsTrigger value="published" className="rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium transition-all">
+                        Published Courses <Badge className="ml-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">{publishedCourses.length}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="drafts" className="rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium transition-all">
+                        Drafts & Imported <Badge className="ml-2 bg-slate-200 text-slate-700 hover:bg-slate-200">{draftCourses.length}</Badge>
+                    </TabsTrigger>
+                </TabsList>
 
-                    <div className="relative w-full md:w-72">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                        <Input
-                            type="search"
-                            placeholder="Search courses..."
-                            className="pl-9 bg-white"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <TabsContent value="published">
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {publishedCourses.length === 0 ? (
-                            <div className="col-span-full py-12 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                <p>No published courses found.</p>
-                            </div>
-                        ) : (
-                            publishedCourses.map((course) => <CourseCard key={course.id} course={course} />)
-                        )}
-                    </div>
+                <TabsContent value="published" className="space-y-6">
+                    {loading ? (
+                         <CoursesLoadingGrid />
+                    ) : publishedCourses.length === 0 ? (
+                        <EmptyState 
+                            title="No published courses" 
+                            description="You haven't published any courses yet. Check your drafts to publish one."
+                            actionLabel="View Drafts"
+                            onAction={() => document.getElementById('tab-drafts')?.click()} 
+                         />
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {publishedCourses.map((course) => <CourseCard key={course.id} course={course} router={router} />)}
+                        </div>
+                    )}
                 </TabsContent>
 
-                <TabsContent value="drafts">
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {draftCourses.length === 0 ? (
-                            <div className="col-span-full py-12 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                <p>No courses imported yet.</p>
-                                <Button variant="ghost" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" onClick={() => router.push('/org/library')}>Browse Library</Button>
-                            </div>
-                        ) : (
-                            draftCourses.map((course) => <CourseCard key={course.id} course={course} />)
-                        )}
-                    </div>
+                <TabsContent value="drafts" className="space-y-6">
+                    {loading ? (
+                        <CoursesLoadingGrid />
+                    ) : draftCourses.length === 0 ? (
+                        <EmptyState 
+                            title="No drafts found" 
+                            description="Import a course from the library or create a new one to get started."
+                            actionLabel="Browse Library"
+                            icon={<Import className="h-6 w-6" />}
+                            onAction={() => router.push('/org/library')}
+                        />
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {draftCourses.map((course) => <CourseCard key={course.id} course={course} router={router} />)}
+                        </div>
+                    )}
                 </TabsContent>
             </Tabs>
         </div>
     );
+}
+
+function CourseCard({ course, router }: { course: any, router: any }) {
+    const gradient = getGradient(course.category);
+
+    return (
+        <div 
+            className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col cursor-pointer"
+            onClick={() => router.push(`/org/courses/${course.id}`)}
+        >
+            <div className={`h-36 w-full bg-gradient-to-r ${gradient} relative`}>
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/20 backdrop-blur-md text-white hover:bg-white/30 border border-white/20">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => router.push(`/org/courses/${course.id}`)}>
+                                <BookOpen className="mr-2 h-4 w-4" /> Edit Curriculum
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                                <Users className="mr-2 h-4 w-4" /> Assign Teacher
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+                
+                <div className="absolute bottom-4 left-6">
+                    <Badge variant={course.status === 'PUBLISHED' ? 'default' : 'secondary'} className={`shadow-sm backdrop-blur-md ${course.status === 'PUBLISHED' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-white/90 text-slate-800 hover:bg-white'}`}>
+                       {course.status === 'PUBLISHED' ? 'Live Course' : 'Draft'}
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="p-6 flex-1 flex flex-col">
+                <div className="mb-4">
+                    <h3 className="text-xl font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-indigo-600 transition-colors">
+                        {course.title}
+                    </h3>
+                    <p className="text-slate-500 text-sm line-clamp-2">
+                        {course.description || "No description provided."}
+                    </p>
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
+                    <div className="flex items-center gap-1.5">
+                        <Layers className="h-4 w-4 text-indigo-500" />
+                        <span>Modules</span>
+                    </div>
+                    {course.difficulty && (
+                        <div className="flex items-center gap-1.5">
+                            <Star className="h-4 w-4 text-orange-400" />
+                            <span>{course.difficulty}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function EmptyState({ title, description, actionLabel, icon, onAction }: any) {
+    return (
+        <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200 text-center">
+            <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                {icon || <Book className="h-8 w-8 text-slate-300" />}
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">{title}</h3>
+            <p className="text-slate-500 max-w-md mb-8">{description}</p>
+            {actionLabel && (
+                <Button onClick={onAction} className="bg-white text-indigo-600 border border-slate-200 hover:bg-slate-50 hover:border-indigo-200">
+                    {actionLabel}
+                </Button>
+            )}
+        </div>
+    )
+}
+
+function CoursesLoadingGrid() {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map((i) => (
+                <div key={i} className="h-[320px] bg-slate-100 rounded-2xl animate-pulse"></div>
+            ))}
+        </div>
+    )
+}
+
+function getGradient(category: string) {
+    if (!category) return "from-indigo-500 to-purple-600";
+    if (category.includes("Computer")) return "from-blue-600 to-indigo-600";
+    if (category.includes("Data")) return "from-emerald-500 to-teal-600";
+    if (category.includes("Business")) return "from-orange-500 to-amber-600";
+    if (category.includes("Design")) return "from-pink-500 to-rose-600";
+    return "from-slate-500 to-slate-600";
 }
