@@ -222,6 +222,13 @@ class UserBasic(BaseModel):
         from_attributes = True
 
 # --- COURSE SCHEMAS ---
+class CourseSummary(BaseModel):
+    id: UUID
+    title: str
+    
+    class Config:
+        from_attributes = True
+
 class CourseBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -322,6 +329,7 @@ class User(UserBase):
     # Optional nested info
     organization: Optional[Organization] = None
     group: Optional[OrgGroup] = None
+    assigned_courses: List[CourseSummary] = []
 
     class Config:
         from_attributes = True

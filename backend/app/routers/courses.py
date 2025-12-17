@@ -83,11 +83,31 @@ def update_course(
     # Check if assigned as primary OR in assignees list
     is_assigned = db_course.assigned_teacher_id == current_user.id or current_user in db_course.assignees
     
-    # HOD Logic: Am I the leader of the group the assigned teacher belongs to?
+    # HOD Logic: Check if user is DEPT_HEAD and assigned teacher is in their department hierarchy
     is_hod = False
-    if db_course.assigned_teacher and db_course.assigned_teacher.org_group_id:
-        group = db.query(models.OrgGroup).filter(models.OrgGroup.id == db_course.assigned_teacher.org_group_id).first()
-        if group and group.leader_id == current_user.id:
+    if current_user.role == models.UserRole.DEPT_HEAD and current_user.org_group_id:
+        if db_course.assigned_teacher:
+            # Check if assigned teacher's group is within HOD's group hierarchy
+            teacher_group_id = db_course.assigned_teacher.org_group_id
+            if teacher_group_id:
+                # Get all descendant groups
+                def _get_all_group_ids(session, root_id):
+                    all_ids = {root_id}
+                    queue = [root_id]
+                    while queue:
+                        current = queue.pop(0)
+                        children = session.query(models.OrgGroup).filter(models.OrgGroup.parent_id == current).all()
+                        for child in children:
+                            if child.id not in all_ids:
+                                all_ids.add(child.id)
+                                queue.append(child.id)
+                    return all_ids
+                
+                hod_group_ids = _get_all_group_ids(db, current_user.org_group_id)
+                if teacher_group_id in hod_group_ids:
+                    is_hod = True
+        else:
+            # Course not assigned yet - HOD can assign teachers from their department
             is_hod = True
             
     if not (is_admin or is_assigned or is_hod):

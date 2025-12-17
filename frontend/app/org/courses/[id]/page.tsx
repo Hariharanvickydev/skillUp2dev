@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getCourse, addTopic, updateTopic, deleteTopic, generateTopics, approveTopic, getSyncStatus, syncCourse, submitCourse, approveCourseReq, rejectCourse } from "@/lib/api"
+import { getCourse, addTopic, updateTopic, deleteTopic, generateTopics, approveTopic, requestTopicApproval, rejectTopic, republishModule, getSyncStatus, syncCourse, submitCourse, approveCourseReq, rejectCourse } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -66,6 +66,19 @@ export default function OrgCourseEditorPage() {
             fetchCourse()
         } catch (e) {
             toast.error("Failed to reject course")
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    const handleRequestTopicApproval = async (topicId: string, topicTitle: string) => {
+        setActionLoading(true)
+        try {
+            await requestTopicApproval(topicId)
+            toast.success(`"${topicTitle}" sent for HOD review`)
+            fetchCourse() // Refresh to update status
+        } catch (e: any) {
+            toast.error(e.response?.data?.detail || "Failed to request approval")
         } finally {
             setActionLoading(false)
         }
@@ -211,6 +224,19 @@ export default function OrgCourseEditorPage() {
         }
     }
 
+    const handleRepublishModule = async (moduleId: string, moduleTitle: string) => {
+        setIsPublishing(true)
+        try {
+            await republishModule(moduleId)
+            toast.success(`Module "${moduleTitle}" re-published successfully!`)
+            fetchCourse() // Refresh to update status
+        } catch (e: any) {
+            toast.error(e.response?.data?.detail || 'Failed to re-publish module')
+        } finally {
+            setIsPublishing(false)
+        }
+    }
+
     const handleCheckSync = () => {
         router.push(`/org/courses/${id}/sync`)
     }
@@ -262,7 +288,17 @@ export default function OrgCourseEditorPage() {
 
                 <div className="relative z-10 space-y-6">
                     <div className="flex items-center gap-2 text-indigo-200">
-                        <Button variant="ghost" className="text-indigo-200 hover:text-white p-0 h-auto hover:bg-transparent" onClick={() => router.push('/org/courses')}>
+                        <Button
+                            variant="ghost"
+                            className="text-indigo-200 hover:text-white p-0 h-auto hover:bg-transparent"
+                            onClick={() => {
+                                // Navigate to role-specific courses page
+                                const backUrl = user?.role === 'DEPT_HEAD' ? '/org/hod/courses'
+                                    : user?.role === 'TEACHER' ? '/org/teacher/courses'
+                                        : '/org/courses';
+                                router.push(backUrl);
+                            }}
+                        >
                             <ArrowLeft className="h-4 w-4 mr-1" /> Back to My Courses
                         </Button>
                     </div>
@@ -507,6 +543,12 @@ export default function OrgCourseEditorPage() {
                                                                     <CheckCircle className="h-3 w-3" /> Live
                                                                 </span>
                                                             )}
+                                                            {/* Pending Updates Badge */}
+                                                            {!parentTopic.is_published && course?.has_pending_updates && (
+                                                                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                                                                    <Clock className="h-3 w-3" /> Pending Updates
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <p className="text-slate-500 text-sm mt-2 ml-11 max-w-3xl">{parentTopic.description}</p>
                                                     </div>
@@ -521,15 +563,22 @@ export default function OrgCourseEditorPage() {
                                                 </div>
 
                                                 <div className="mt-4 ml-11 flex gap-3">
-                                                    {!parentTopic.is_published && subTopics.length > 0 && subTopics.every((t: any) => t.status === 'APPROVED') && (
+                                                    {/* Only HODs and Admins can publish modules */}
+                                                    {!parentTopic.is_published && subTopics.length > 0 && subTopics.every((t: any) => t.status === 'APPROVED') && user?.role !== 'TEACHER' && (
                                                         <Button
                                                             size="sm"
-                                                            onClick={() => handlePublishModule(parentTopic.id, parentTopic.title)}
-                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white h-9"
+                                                            onClick={() => course?.has_pending_updates
+                                                                ? handleRepublishModule(parentTopic.id, parentTopic.title)
+                                                                : handlePublishModule(parentTopic.id, parentTopic.title)
+                                                            }
+                                                            className={course?.has_pending_updates
+                                                                ? "bg-orange-600 hover:bg-orange-700 text-white h-9"
+                                                                : "bg-emerald-600 hover:bg-emerald-700 text-white h-9"
+                                                            }
                                                             disabled={isPublishing}
                                                         >
                                                             {isPublishing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <CheckCircle className="h-3 w-3 mr-2" />}
-                                                            Publish Module
+                                                            {course?.has_pending_updates ? "Review & Re-Publish" : "Publish Module"}
                                                         </Button>
                                                     )}
                                                     <Button
@@ -600,6 +649,31 @@ export default function OrgCourseEditorPage() {
                                                                     <Edit3 className="h-3 w-3 mr-2" />
                                                                     {topic.status === 'APPROVED' ? " Edit / Review" : "Manage Content"}
                                                                 </Button>
+
+                                                                {/* Request Approval Button for Teachers (when DRAFT and has content) */}
+                                                                {user?.role === 'TEACHER' && topic.status === 'DRAFT' && topic.has_content && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={() => handleRequestTopicApproval(topic.id, topic.title)}
+                                                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                                        disabled={actionLoading}
+                                                                    >
+                                                                        {actionLoading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <CheckCircle className="h-3 w-3 mr-2" />}
+                                                                        Request Approval
+                                                                    </Button>
+                                                                )}
+                                                                {/* Topic status badges */}
+                                                                {topic.status === 'PENDING_APPROVAL' && (
+                                                                    <span className="px-2 py-1 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-md">
+                                                                        Pending Review
+                                                                    </span>
+                                                                )}
+                                                                {topic.status === 'REJECTED' && (
+                                                                    <span className="px-2 py-1 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-md">
+                                                                        Rejected
+                                                                    </span>
+                                                                )}
+
                                                                 <div className="flex gap-1 opacity-0 group-hover/topic:opacity-100 transition-opacity">
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTopic(topic); setIsEditDialogOpen(true); }}>
                                                                         <Pencil className="h-3.5 w-3.5 text-slate-400" />

@@ -106,7 +106,7 @@ def import_course_to_org(
             title=mod.title,
             description=mod.description,
             order=mod.order,
-            status="PENDING_APPROVAL", 
+            status="DRAFT",  # Start as DRAFT, teacher can request approval later
             is_published=False,
             source_topic_id=mod.id
         )
@@ -127,7 +127,7 @@ def import_course_to_org(
                 description=sub.description,
                 order=sub.order,
                 parent_topic_id=new_parent_id,
-                status="PENDING_APPROVAL",
+                status="DRAFT",  # Start as DRAFT, teacher can request approval later
                 is_published=False,
                 source_topic_id=sub.id
             )

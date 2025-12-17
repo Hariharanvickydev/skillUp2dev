@@ -30,6 +30,23 @@ def read_users(
         else:
              # Regular user without org? Should probably not see list
              return []
+        
+        # If Department Head, enforce group filter (Recursive)
+        if current_user.role == models.UserRole.DEPT_HEAD and current_user.org_group_id:
+            # Helper to get all descendant group IDs
+            def _get_all_descendant_ids(session: Session, root_group_id: UUID) -> List[UUID]:
+                all_ids = {root_group_id}
+                queue = [root_group_id]
+                while queue:
+                    current = queue.pop(0)
+                    children = session.query(models.OrgGroup).filter(models.OrgGroup.parent_id == current).all()
+                    for child in children:
+                        if child.id not in all_ids:
+                            all_ids.add(child.id)
+                            queue.append(child.id)
+                return list(all_ids)
+            
+            org_group_id = _get_all_descendant_ids(db, current_user.org_group_id)
 
     users = crud.get_users(db, skip=skip, limit=limit, organization_id=organization_id, org_group_id=org_group_id, role=role, search=search)
     return users

@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getCourse, getContent, generateContent, updateTopicContent, approveTopic } from "@/lib/api"
+import { getCourse, getContent, generateContent, updateTopicContent, approveTopic, convertToMarkdown } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Save, Loader2, Sparkles, CheckCircle, Clock, Eye, EyeOff, LayoutTemplate } from "lucide-react"
+import { ArrowLeft, Save, Loader2, Sparkles, CheckCircle, Clock, Eye, EyeOff, LayoutTemplate, FileText, Wand2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -30,6 +30,9 @@ export default function AdminTopicEditorPage() {
     const [content, setContent] = useState("")
     const [originalContent, setOriginalContent] = useState("")
     const [isPreviewMode, setIsPreviewMode] = useState(false)
+    const [showConverter, setShowConverter] = useState(false)
+    const [rawText, setRawText] = useState("")
+    const [converting, setConverting] = useState(false)
 
     // Load Data
     useEffect(() => {
@@ -107,26 +110,48 @@ export default function AdminTopicEditorPage() {
     const handleGenerate = async () => {
         setGenerating(true)
         try {
-            // 2. Fetch Content
-            // Updated: API now returns content directly
             const response = await generateContent(topicId)
             if (response.content) {
                 setContent(response.content)
                 setOriginalContent(response.content)
             } else {
-                // Fallback if API hasn't updated yet (though it has)
                 const contentData = await getContent(topicId)
                 setContent(contentData.content)
                 setOriginalContent(contentData.content)
             }
 
             toast.success("Content generated!")
-            setIsPreviewMode(true) // Auto-switch to preview
+            setIsPreviewMode(true)
         } catch (e: any) {
-            // Handle 429 specifically if needed
             toast.error(e.response?.data?.detail?.message || "Generation failed")
         } finally {
             setGenerating(false)
+        }
+    }
+
+    const handleConvertToMarkdown = async () => {
+        if (!rawText.trim()) {
+            toast.error("Please paste some text first")
+            return
+        }
+        setConverting(true)
+        try {
+            const response = await convertToMarkdown(rawText)
+            if (response.markdown) {
+                if (content.trim()) {
+                    setContent(content + "\n\n" + response.markdown)
+                } else {
+                    setContent(response.markdown)
+                }
+                setRawText("")
+                setShowConverter(false)
+                toast.success("Text converted successfully!")
+                setIsPreviewMode(false)
+            }
+        } catch (e: any) {
+            toast.error(e.response?.data?.detail || "Conversion failed")
+        } finally {
+            setConverting(false)
         }
     }
 
@@ -185,6 +210,15 @@ export default function AdminTopicEditorPage() {
                         AI Assistance
                     </Button>
 
+                    <Button
+                        variant={showConverter ? "secondary" : "outline"}
+                        onClick={() => setShowConverter(!showConverter)}
+                        className={cn(showConverter && "bg-slate-100")}
+                    >
+                        <Wand2 className="h-4 w-4 mr-2" />
+                        Text-to-MD
+                    </Button>
+
                     <Button onClick={handleSave} disabled={generating || !hasUnsavedChanges} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]">
                         {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                             <>
@@ -210,6 +244,39 @@ export default function AdminTopicEditorPage() {
             <div className="flex-1 flex overflow-hidden">
                 {/* Editor Pane (Left) */}
                 <div className={cn("flex-1 border-r border-slate-200 flex flex-col bg-slate-50 transition-all duration-300", isPreviewMode && "hidden")}>
+                    {showConverter && (
+                        <div className="border-b bg-indigo-50/50 p-4 transition-all animate-in slide-in-from-top duration-300">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold text-indigo-900 flex items-center">
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    AI Text Converter
+                                </h3>
+                                <Button variant="ghost" size="sm" onClick={() => setShowConverter(false)} className="h-7 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100">
+                                    Close
+                                </Button>
+                            </div>
+                            <Textarea
+                                placeholder="Paste your plain English text here..."
+                                value={rawText}
+                                onChange={(e) => setRawText(e.target.value)}
+                                className="min-h-[120px] mb-3 text-sm focus-visible:ring-indigo-500"
+                            />
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    size="sm"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                    onClick={handleConvertToMarkdown}
+                                    disabled={converting || !rawText.trim()}
+                                >
+                                    {converting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Wand2 className="h-3 w-3 mr-2" />}
+                                    Convert to Markdown
+                                </Button>
+                            </div>
+                            <p className="text-[10px] text-indigo-600 mt-2 italic">
+                                AI will analyze your text and format it into structured Markdown with headers, lists, and bold text.
+                            </p>
+                        </div>
+                    )}
                     <div className="px-4 py-2 border-b bg-white text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         Editor (Markdown)
                     </div>

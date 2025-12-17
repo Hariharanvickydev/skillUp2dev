@@ -14,10 +14,12 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function TopicEditorPage() {
     const params = useParams()
     const router = useRouter()
+    const { user } = useAuth()
     // params.id corresponds to [id] (courseId)
     // params.topicId corresponds to [topicId]
     const { id: courseId, topicId } = params as { id: string, topicId: string }
@@ -193,7 +195,8 @@ export default function TopicEditorPage() {
                         )}
                     </Button>
 
-                    {topic?.status !== 'APPROVED' && (
+                    {/* Only HODs and Admins can approve */}
+                    {topic?.status !== 'APPROVED' && user?.role !== 'TEACHER' && (
                         <Button
                             variant="outline"
                             className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"

@@ -93,8 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             router.push('/admin/dashboard')
         } else if (role === 'ORG_ADMIN') {
             router.push('/org/dashboard')
-        } else if (['DEPT_HEAD', 'TEACHER'].includes(role)) {
-            router.push('/')
+        } else if (role === 'DEPT_HEAD') {
+            router.push('/org/hod/dashboard')
+        } else if (role === 'TEACHER') {
+            router.push('/org/teacher/dashboard')
         } else {
             router.push('/learn')
         }
@@ -116,8 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Redirect based on role
         if (user_role === 'SUPER_ADMIN') {
             router.push('/admin/dashboard')
-        } else if (['ORG_ADMIN', 'DEPT_HEAD', 'TEACHER'].includes(user_role)) {
-            router.push('/')
+        } else if (user_role === 'ORG_ADMIN') {
+            router.push('/org/dashboard')
+        } else if (user_role === 'DEPT_HEAD') {
+            router.push('/org/hod/dashboard')
+        } else if (user_role === 'TEACHER') {
+            router.push('/org/teacher/dashboard')
         } else {
             router.push('/learn')
         }

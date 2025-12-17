@@ -214,8 +214,84 @@ def delete_topic(
     
     db.delete(topic)
     db.commit()
-    
     return {"message": "Topic deleted successfully"}
+
+@router.post("/{topic_id}/request-approval")
+def request_topic_approval(
+    topic_id: UUID,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Topic/Module Approval Request (Teacher Action).
+    """
+    topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+        
+    is_teacher = current_user.role == models.UserRole.TEACHER
+    if is_teacher:
+        course = topic.course
+        # Check if assigned via primary field OR M2M assignees
+        is_assigned = (course.assigned_teacher_id == current_user.id or 
+                      current_user in course.assignees)
+        is_creator = course.creator_id == current_user.id
+        if not (is_assigned or is_creator):
+             raise HTTPException(status_code=403, detail="Not authorized to edit this course")
+
+    # Validation: Check content for module (children)
+    children = db.query(models.Topic).filter(models.Topic.parent_topic_id == topic.id).all()
+    if children:
+        for child in children:
+            if not child.content:
+                 # Check if content exists in TopicContent
+                 if not child.has_content and not db.query(models.TopicContent).filter(models.TopicContent.topic_id == child.id).first():
+                     raise HTTPException(status_code=400, detail=f"Topic '{child.title}' is empty. Please add content.")
+    
+    topic.status = "PENDING_APPROVAL"
+    db.commit()
+    return {"status": "PENDING_APPROVAL"}
+
+@router.post("/{topic_id}/approve")
+def approve_topic(
+    topic_id: UUID,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Approve Topic/Module (HOD/Admin Action).
+    """
+    if current_user.role not in [models.UserRole.ORG_ADMIN, models.UserRole.DEPT_HEAD, models.UserRole.SUPER_ADMIN]:
+        raise HTTPException(status_code=403, detail="Only HOD or Admin can approve content")
+
+    topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    topic.status = "APPROVED"
+    db.commit()
+    return {"status": "APPROVED"}
+
+@router.post("/{topic_id}/reject")
+def reject_topic(
+    topic_id: UUID,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Reject Topic/Module (HOD/Admin Action).
+    """
+    if current_user.role not in [models.UserRole.ORG_ADMIN, models.UserRole.DEPT_HEAD, models.UserRole.SUPER_ADMIN]:
+        raise HTTPException(status_code=403, detail="Only HOD or Admin can reject content")
+
+    topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    topic.status = "REJECTED"
+    db.commit()
+    return {"status": "REJECTED"}
+
 @router.put("/{topic_id}/content")
 def update_topic_content(
     topic_id: UUID,
@@ -249,6 +325,115 @@ def update_topic_content(
     
     # NEW: Mark as synced (since user manually merged/edited) to avoid flagging as out-of-date immediately
     topic.last_synced_at = datetime.utcnow()
+    
+    # CONTENT VERSIONING: If topic is APPROVED, unpublish the module
+    if topic.status == "APPROVED":
+        # Find the module (parent topic)
+        if topic.parent_topic_id:
+            module = db.query(models.Topic).filter(models.Topic.id == topic.parent_topic_id).first()
+        else:
+            module = topic  # This IS the module
+        
+        # Unpublish the module so students see old version until HOD re-approves
+        if module and module.is_published:
+            module.is_published = False
+            # Mark course as having pending updates
+            course = topic.course
+            if course:
+                course.has_pending_updates = True
 
     db.commit()
     return {"message": "Content updated successfully"}
+
+@router.post("/{module_id}/republish")
+def republish_module(
+    module_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    Re-publish a module after reviewing updates to approved content.
+    Only HOD and Admins can re-publish.
+    """
+    # Permission check: HOD or Admin only
+    if current_user.role not in [models.UserRole.DEPT_HEAD, models.UserRole.ORG_ADMIN, models.UserRole.SUPER_ADMIN]:
+        raise HTTPException(status_code=403, detail="Only HOD or Admin can re-publish modules")
+    
+    module = db.query(models.Topic).filter(models.Topic.id == module_id).first()
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found")
+    
+    # Verify this is a module (parent topic)
+    if module.parent_topic_id is not None:
+        raise HTTPException(status_code=400, detail="Can only republish modules, not sub-topics")
+    
+    # Verify all children topics are APPROVED
+    children = db.query(models.Topic).filter(models.Topic.parent_topic_id == module_id).all()
+    for child in children:
+        if child.status != "APPROVED":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Topic '{child.title}' is not approved. All topics must be approved before publishing."
+            )
+    
+    # Re-publish the module
+    module.is_published = True
+    
+    # Clear pending updates flag on course
+    course = module.course
+    if course:
+        course.has_pending_updates = False
+    
+    db.commit()
+    db.refresh(module)
+    
+    return {"message": "Module re-published successfully", "module": module}
+
+@router.post("/tools/convert-to-markdown")
+def convert_to_markdown(
+    request_body: dict = Body(...),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """Convert plain text to well-formatted Markdown using AI"""
+    raw_text = request_body.get('text')
+    if not raw_text:
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    try:
+        from ..ai import get_ai_model
+        model = get_ai_model()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI Configuration Error: {str(e)}")
+
+    prompt = f"""
+    You are an expert technical writer and educator. 
+    Format the following plain text into high-quality Markdown for an educational platform.
+    
+    TEXT TO CONVERT:
+    {raw_text}
+    
+    INSTRUCTIONS:
+    - Use proper markdown headings (# for main titles, ## for sections).
+    - Use bold (**text**) and italics (*text*) for emphasis.
+    - Use bullet points or numbered lists where appropriate.
+    - Include code blocks with language identifiers if there is code in the text.
+    - Ensure clear structure and readability.
+    - Return ONLY the markdown content. No preamble, no explanation, no wrapping in code blocks.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        content_text = response.text.strip()
+        
+        # Clean up any potential markdown wrapping
+        if content_text.startswith("```markdown"):
+            content_text = content_text[len("```markdown"):].strip()
+        elif content_text.startswith("```"):
+            content_text = content_text[3:].strip()
+        
+        if content_text.endswith("```"):
+            content_text = content_text[:-3].strip()
+            
+        return {"markdown": content_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI Conversion Failed: {str(e)}")

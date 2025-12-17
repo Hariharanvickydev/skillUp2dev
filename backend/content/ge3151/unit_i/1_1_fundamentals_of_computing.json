@@ -1,0 +1,47 @@
+{
+    "title": "1.1 Fundamentals of Computing",
+    "description": "Basic concepts of computing and problem identification.",
+    "concept": "Computing is the systematic transformation of input data into useful output using an algorithm. A computational problem is any task that can be expressed as a clear input‑output relation. Understanding the core components—data, operations, control flow, and abstraction—enables you to model real‑world situations as algorithms.",
+    "real_world_example": "Consider a small retail shop that needs to know the total sales for each product each day. The input is a list of sales transactions (product ID, quantity, price). The algorithm iterates over the list, aggregates totals per product, and outputs a sales‑summary report.",
+    "code_example": "```python\n# Retail sales aggregation example\nfrom collections import defaultdict\n\nsales = [\n    (\"Apple\", 3, 0.5),\n    (\"Banana\", 2, 0.3),\n    (\"Apple\", 1, 0.5),\n    (\"Orange\", 5, 0.7),\n]\n\ntotals = defaultdict(float)\nfor product, qty, price in sales:\n    totals[product] += qty * price\n\nprint(\"Sales summary:\")\nfor product, amount in totals.items():\n    print(f\"- {product}: ${amount:.2f}\")\n```",
+    "exam_questions": [
+        {
+            "type": "MCQ",
+            "question": "Which statement best describes a computational problem?",
+            "options": [
+                "A) A task that can be solved by a human without any steps.",
+                "B) A well‑defined input‑output relation that can be solved by an algorithm.",
+                "C) A random set of data with no purpose.",
+                "D) An unsolvable puzzle."
+            ],
+            "answer": "B"
+        },
+        {
+            "type": "Short Answer",
+            "question": "Explain in two sentences why abstraction is important when modelling a real‑world problem as an algorithm.",
+            "answer": "Abstraction hides irrelevant details, letting us focus on the essential parts of the problem. This reduces complexity and makes the algorithm easier to design, understand, and implement."
+        },
+        {
+            "type": "Coding",
+            "question": "Write a Python function `aggregate_sales(sales)` that receives a list of `(product, qty, price)` tuples and returns a dictionary mapping each product to its total sales amount.",
+            "answer": "def aggregate_sales(sales):\n    from collections import defaultdict\n    totals = defaultdict(float)\n    for product, qty, price in sales:\n        totals[product] += qty * price\n    return dict(totals)"
+        }
+    ],
+    "exam_tips": [
+        "*Remember CO1 – develop algorithmic solutions.* Identify the input, output, and transformation steps before coding.",
+        "*Use appropriate data structures.* For aggregation problems, a hash‑map (`dict`/`defaultdict`) is optimal.",
+        "*Write pseudo‑code first.* Clearly outline the algorithmic steps before translating to Python.",
+        "*Practice the same pattern with different domains (e.g., library loans, inventory) to internalise the concept."
+    ],
+    "key_points": [
+        "Computational thinking = problem identification + algorithm design + implementation.",
+        "A computational problem must have a clear input‑output specification.",
+        "Abstraction simplifies complex real‑world scenarios into manageable algorithmic steps.",
+        "Choosing the right data structure directly impacts efficiency."
+    ],
+    "references": [
+        "Downey, Think Python, 2nd Ed., O'Reilly, 2016 – Chapter 1 (Fundamentals of Computing).",
+        "Deitel & Deitel, Python for Programmers, Pearson, 2021 – Section on Algorithms & Problem Solving.",
+        "Guttag, Introduction to Computation and Programming Using Python, MIT Press, 2021 – Chapter on Computational Thinking."
+    ]
+}

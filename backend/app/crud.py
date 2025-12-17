@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from . import models, schemas, auth
 from uuid import UUID
 
@@ -31,14 +32,23 @@ def get_courses_for_user(db: Session, user: models.User, skip: int = 0, limit: i
     1. Courses where user is the primary assigned_teacher_id
     2. Courses where user is in the assignees list (M2M)
     3. Courses created by the user (creator_id)
+    4. IF HOD: Courses assigned to teachers in their Org Group.
     """
+    
+    # Base criteria: Assigned or Created
+    criteria = [
+        models.Course.assigned_teacher_id == user.id,
+        models.Course.creator_id == user.id,
+        models.Course.assignees.any(models.User.id == user.id)
+    ]
+    
+    # HOD Logic: Add courses assigned to my team
+    if user.role == "DEPT_HEAD" and user.org_group_id:
+        criteria.append(models.Course.assigned_teacher.has(org_group_id=user.org_group_id))
+        
     query = db.query(models.Course).filter(
-        models.Course.organization_id == user.organization_id,  # Scoped to org
-        (
-            (models.Course.assigned_teacher_id == user.id) |        # Primary teacher
-            (models.Course.creator_id == user.id) |                 # Creator (Drafts)
-            (models.Course.assignees.any(models.User.id == user.id)) # M2M Assignee
-        )
+        models.Course.organization_id == user.organization_id,
+        or_(*criteria)
     )
     
     return query.offset(skip).limit(limit).all()
@@ -130,7 +140,11 @@ def update_organization(db: Session, org_id: UUID, org_update: schemas.Organizat
 # Legacy department functions removed in Org Hierarchy Refactor
 
 # --- USER MANAGEMENT CRUD ---
-def get_users(db: Session, skip: int = 0, limit: int = 100, organization_id: UUID = None, org_group_id: UUID = None, role: str = None, search: str = None):
+from typing import List, Optional, Union
+
+# ...
+
+def get_users(db: Session, skip: int = 0, limit: int = 100, organization_id: UUID = None, org_group_id: Union[UUID, List[UUID]] = None, role: str = None, search: str = None):
     # Eager load groups for hierarchy display
     query = db.query(models.User).options(
         joinedload(models.User.group).joinedload(models.OrgGroup.parent).joinedload(models.OrgGroup.parent)
@@ -140,7 +154,10 @@ def get_users(db: Session, skip: int = 0, limit: int = 100, organization_id: UUI
         query = query.filter(models.User.organization_id == organization_id)
 
     if org_group_id:
-        query = query.filter(models.User.org_group_id == org_group_id)
+        if isinstance(org_group_id, list):
+            query = query.filter(models.User.org_group_id.in_(org_group_id))
+        else:
+            query = query.filter(models.User.org_group_id == org_group_id)
     
     if role:
         query = query.filter(models.User.role == role)

@@ -23,14 +23,35 @@ export default function OrgLayout({
         router.push('/login');
     };
 
-    const navigation = [
-        { name: 'Dashboard', href: '/org/dashboard', icon: LayoutDashboard },
-        { name: 'People', href: '/org/people', icon: Users },
-        { name: 'Library', href: '/org/library', icon: Book },
-        { name: 'Courses', href: '/org/courses', icon: BookOpen },
-        { name: 'Exams', href: '/org/exams', icon: FileText },
-        { name: 'Analytics', href: '/org/analytics', icon: BarChart3 },
-    ];
+    const getNavigation = () => {
+        const role = user?.role;
+        if (role === 'ORG_ADMIN') {
+            return [
+                { name: 'Dashboard', href: '/org/dashboard', icon: LayoutDashboard },
+                { name: 'People', href: '/org/people', icon: Users },
+                { name: 'Library', href: '/org/library', icon: Book },
+                { name: 'Courses', href: '/org/courses', icon: BookOpen },
+                { name: 'Exams', href: '/org/exams', icon: FileText },
+                { name: 'Analytics', href: '/org/analytics', icon: BarChart3 },
+            ];
+        } else if (role === 'DEPT_HEAD') {
+            return [
+                { name: 'Dashboard', href: '/org/hod/dashboard', icon: LayoutDashboard },
+                { name: 'Courses', href: '/org/hod/courses', icon: BookOpen },
+                { name: 'Exams', href: '/org/exams', icon: FileText }, // Shared? Or specific? For now shared.
+                { name: 'Analytics', href: '/org/analytics', icon: BarChart3 },
+            ];
+        } else if (role === 'TEACHER') {
+            return [
+                { name: 'Dashboard', href: '/org/teacher/dashboard', icon: LayoutDashboard },
+                { name: 'Courses', href: '/org/teacher/courses', icon: BookOpen },
+                { name: 'Exams', href: '/org/exams', icon: FileText },
+            ];
+        }
+        return [];
+    };
+
+    const navigation = getNavigation();
 
     const SidebarContent = ({ collapsed = false }: { collapsed?: boolean }) => (
         <div className="flex flex-col h-full bg-slate-900 text-white relative overflow-hidden transition-all duration-300">
@@ -49,7 +70,7 @@ export default function OrgLayout({
                     {!collapsed && (
                         <div className="transition-opacity duration-300 opacity-100 whitespace-nowrap overflow-hidden">
                             <h1 className="text-xl font-bold tracking-tight text-white">SkillUp2Dev</h1>
-                            <p className="text-xs text-slate-400 font-medium tracking-wide">ORG ADMIN</p>
+                            <p className="text-xs text-slate-400 font-medium tracking-wide">{user?.role ? user.role.replace('_', ' ') : 'ORG ADMIN'}</p>
                         </div>
                     )}
                 </div>

@@ -73,6 +73,21 @@ export const approveTopic = async (topicId: string) => {
     return response.data;
 };
 
+export const requestTopicApproval = async (topicId: string) => {
+    const response = await api.post(`/topics/${topicId}/request-approval`);
+    return response.data;
+};
+
+export const rejectTopic = async (topicId: string, reason: string) => {
+    const response = await api.post(`/topics/${topicId}/reject`, { reason });
+    return response.data;
+};
+
+export const republishModule = async (moduleId: string) => {
+    const response = await api.post(`/topics/${moduleId}/republish`);
+    return response.data;
+};
+
 export const updateTopic = async (topicId: string, data: { title?: string; description?: string; order?: number }) => {
     const response = await api.put(`/topics/${topicId}`, data);
     return response.data;
@@ -80,6 +95,11 @@ export const updateTopic = async (topicId: string, data: { title?: string; descr
 
 export const updateTopicContent = async (topicId: string, content: string) => {
     const response = await api.put(`/topics/${topicId}/content`, { content });
+    return response.data;
+};
+
+export const convertToMarkdown = async (text: string) => {
+    const response = await api.post('/topics/tools/convert-to-markdown', { text });
     return response.data;
 };
 

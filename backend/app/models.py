@@ -165,6 +165,7 @@ class Course(Base):
     outcomes = Column(JSON, default=[]) # e.g. ["Understand Basic Syntax", "Build API"]
 
     is_published = Column(Boolean, default=False)
+    has_pending_updates = Column(Boolean, default=False)  # True when approved content is edited but not re-published
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
