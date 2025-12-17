@@ -98,10 +98,6 @@ export const updateTopicContent = async (topicId: string, content: string) => {
     return response.data;
 };
 
-export const convertToMarkdown = async (text: string) => {
-    const response = await api.post('/topics/tools/convert-to-markdown', { text });
-    return response.data;
-};
 
 export const deleteTopic = async (topicId: string) => {
     const response = await api.delete(`/topics/${topicId}`);

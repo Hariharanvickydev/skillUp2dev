@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getCourse, getContent, generateContent, updateTopicContent, approveTopic, convertToMarkdown } from "@/lib/api"
+import { getCourse, getContent, generateContent, updateTopicContent, approveTopic } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Save, Loader2, Sparkles, CheckCircle, Clock, Eye, EyeOff, LayoutTemplate, FileText, Wand2 } from "lucide-react"
+import {
+    ArrowLeft, Save, Loader2, Sparkles, CheckCircle, Clock, Eye, EyeOff, LayoutTemplate,
+    Bold, Italic, List, ListOrdered, Heading1, Heading2, Code as CodeIcon, Link2, TableProperties, Undo2, Redo2
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -30,9 +33,11 @@ export default function AdminTopicEditorPage() {
     const [content, setContent] = useState("")
     const [originalContent, setOriginalContent] = useState("")
     const [isPreviewMode, setIsPreviewMode] = useState(false)
-    const [showConverter, setShowConverter] = useState(false)
-    const [rawText, setRawText] = useState("")
-    const [converting, setConverting] = useState(false)
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    // Undo History States
+    const [history, setHistory] = useState<string[]>([])
+    const [historyStep, setHistoryStep] = useState(-1)
 
     // Load Data
     useEffect(() => {
@@ -54,8 +59,13 @@ export default function AdminTopicEditorPage() {
                 setContentLoading(true)
                 try {
                     const contentData = await getContent(topicId)
-                    setContent(contentData.content || "")
-                    setOriginalContent(contentData.content || "")
+                    const initialContent = contentData.content || ""
+                    setContent(initialContent)
+                    setOriginalContent(initialContent)
+
+                    // Initialize History
+                    setHistory([initialContent])
+                    setHistoryStep(0)
 
                     // Smart View Logic:
                     // If content exists -> Default to Full Preview
@@ -114,6 +124,7 @@ export default function AdminTopicEditorPage() {
             if (response.content) {
                 setContent(response.content)
                 setOriginalContent(response.content)
+                pushToHistory(response.content)
             } else {
                 const contentData = await getContent(topicId)
                 setContent(contentData.content)
@@ -129,29 +140,107 @@ export default function AdminTopicEditorPage() {
         }
     }
 
-    const handleConvertToMarkdown = async () => {
-        if (!rawText.trim()) {
-            toast.error("Please paste some text first")
-            return
+    const pushToHistory = (newContent: string) => {
+        const newHistory = history.slice(0, historyStep + 1)
+        newHistory.push(newContent)
+        // Limit history size to 50
+        if (newHistory.length > 50) newHistory.shift()
+        setHistory(newHistory)
+        setHistoryStep(newHistory.length - 1)
+    }
+
+    const handleUndo = () => {
+        if (historyStep > 0) {
+            const prevStep = historyStep - 1
+            setHistoryStep(prevStep)
+            setContent(history[prevStep])
+            toast.success("Undo successful")
         }
-        setConverting(true)
-        try {
-            const response = await convertToMarkdown(rawText)
-            if (response.markdown) {
-                if (content.trim()) {
-                    setContent(content + "\n\n" + response.markdown)
-                } else {
-                    setContent(response.markdown)
-                }
-                setRawText("")
-                setShowConverter(false)
-                toast.success("Text converted successfully!")
-                setIsPreviewMode(false)
+    }
+
+    const handleRedo = () => {
+        if (historyStep < history.length - 1) {
+            const nextStep = historyStep + 1
+            setHistoryStep(nextStep)
+            setContent(history[nextStep])
+            toast.success("Redo successful")
+        }
+    }
+
+    const applyFormatting = (type: string) => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const selectedText = content.substring(start, end)
+        const beforeText = content.substring(0, start)
+        const afterText = content.substring(end)
+
+        const newContent = handleFormattingLogic(type, beforeText, selectedText, afterText)
+
+        setContent(newContent)
+        pushToHistory(newContent)
+
+        // Refocus and set cursor
+        setTimeout(() => {
+            textarea.focus()
+            if (!selectedText) {
+                const newPos = start + (type === 'bold' ? 2 : type === 'italic' ? 1 : 0)
+                // For headings and lists, we just put it at the end of the tag
             }
-        } catch (e: any) {
-            toast.error(e.response?.data?.detail || "Conversion failed")
-        } finally {
-            setConverting(false)
+        }, 0)
+    }
+
+    const handleFormattingLogic = (type: string, beforeText: string, selectedText: string, afterText: string): string => {
+        switch (type) {
+            case 'bold':
+                return `${beforeText}**${selectedText || 'text'}**${afterText}`
+            case 'italic':
+                return `${beforeText}*${selectedText || 'text'}*${afterText}`
+            case 'h1':
+                return `${beforeText}\n# ${selectedText || 'Heading 1'}\n${afterText}`
+            case 'h2':
+                return `${beforeText}\n## ${selectedText || 'Heading 2'}\n${afterText}`
+            case 'list':
+                return `${beforeText}\n- ${selectedText || 'item'}\n${afterText}`
+            case 'ordered-list':
+                return `${beforeText}\n1. ${selectedText || 'item'}\n${afterText}`
+            case 'code':
+                return `${beforeText}\n\`\`\`\n${selectedText || 'code'}\n\`\`\`\n${afterText}`
+            case 'link':
+                return `${beforeText}[${selectedText || 'link text'}](https://example.com)${afterText}`
+            case 'table':
+                if (selectedText) {
+                    let lines = selectedText.trim().split('\n')
+                    // Filter out existing markdown separator lines (| --- | or --- ---)
+                    const dataLines = lines.filter(line => {
+                        const trimmed = line.trim()
+                        // If it's just dashes, colons, and pipes/spaces, it's a separator
+                        return !(/^[ \-|:]+$/.test(trimmed) && trimmed.includes('-'))
+                    })
+
+                    if (dataLines.length > 0) {
+                        const rows = dataLines.map(line => {
+                            const cells = line.split(/[,\t|]/).map(c => c.trim()).filter(c => c.length > 0)
+                            return `| ${cells.join(' | ')} |`
+                        })
+
+                        // Use first line as header
+                        const header = rows[0]
+                        const colCount = header.split('|').length - 2
+                        const underline = `| ${Array(colCount).fill('---').join(' | ')} |`
+
+                        if (rows.length === 1) {
+                            return `${beforeText}\n${header}\n${underline}\n|  |  |\n${afterText}`
+                        }
+                        return `${beforeText}\n${header}\n${underline}\n${rows.slice(1).join('\n')}\n${afterText}`
+                    }
+                }
+                // Default template
+                return `${beforeText}\n| Header 1 | Header 2 |\n| :--- | :--- |\n| Cell 1 | Cell 2 |\n| Cell 3 | Cell 4 |\n${afterText}`
+            default:
+                return beforeText + selectedText + afterText
         }
     }
 
@@ -210,15 +299,6 @@ export default function AdminTopicEditorPage() {
                         AI Assistance
                     </Button>
 
-                    <Button
-                        variant={showConverter ? "secondary" : "outline"}
-                        onClick={() => setShowConverter(!showConverter)}
-                        className={cn(showConverter && "bg-slate-100")}
-                    >
-                        <Wand2 className="h-4 w-4 mr-2" />
-                        Text-to-MD
-                    </Button>
-
                     <Button onClick={handleSave} disabled={generating || !hasUnsavedChanges} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]">
                         {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                             <>
@@ -244,43 +324,67 @@ export default function AdminTopicEditorPage() {
             <div className="flex-1 flex overflow-hidden">
                 {/* Editor Pane (Left) */}
                 <div className={cn("flex-1 border-r border-slate-200 flex flex-col bg-slate-50 transition-all duration-300", isPreviewMode && "hidden")}>
-                    {showConverter && (
-                        <div className="border-b bg-indigo-50/50 p-4 transition-all animate-in slide-in-from-top duration-300">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-sm font-semibold text-indigo-900 flex items-center">
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    AI Text Converter
-                                </h3>
-                                <Button variant="ghost" size="sm" onClick={() => setShowConverter(false)} className="h-7 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100">
-                                    Close
-                                </Button>
-                            </div>
-                            <Textarea
-                                placeholder="Paste your plain English text here..."
-                                value={rawText}
-                                onChange={(e) => setRawText(e.target.value)}
-                                className="min-h-[120px] mb-3 text-sm focus-visible:ring-indigo-500"
-                            />
-                            <div className="flex justify-end gap-2">
-                                <Button
-                                    size="sm"
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                                    onClick={handleConvertToMarkdown}
-                                    disabled={converting || !rawText.trim()}
-                                >
-                                    {converting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Wand2 className="h-3 w-3 mr-2" />}
-                                    Convert to Markdown
-                                </Button>
-                            </div>
-                            <p className="text-[10px] text-indigo-600 mt-2 italic">
-                                AI will analyze your text and format it into structured Markdown with headers, lists, and bold text.
-                            </p>
-                        </div>
-                    )}
-                    <div className="px-4 py-2 border-b bg-white text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    {/* Manual Formatting Toolbar */}
+                    <div className="px-3 py-1.5 border-b bg-white flex items-center gap-1 shrink-0 overflow-x-auto">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-600 mr-1"
+                            onClick={handleUndo}
+                            disabled={historyStep <= 0}
+                            title="Undo (Ctrl+Z)"
+                        >
+                            <Undo2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-600 mr-2"
+                            onClick={handleRedo}
+                            disabled={historyStep >= history.length - 1}
+                            title="Redo (Ctrl+Y)"
+                        >
+                            <Redo2 className="h-4 w-4" />
+                        </Button>
+                        <div className="w-[1px] h-4 bg-slate-200 mx-1 mr-2" />
+
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('bold')} title="Bold">
+                            <Bold className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('italic')} title="Italic">
+                            <Italic className="h-4 w-4" />
+                        </Button>
+                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('h1')} title="Heading 1">
+                            <Heading1 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('h2')} title="Heading 2">
+                            <Heading2 className="h-4 w-4" />
+                        </Button>
+                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('list')} title="Bullet List">
+                            <List className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('ordered-list')} title="Numbered List">
+                            <ListOrdered className="h-4 w-4" />
+                        </Button>
+                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('code')} title="Code Block">
+                            <CodeIcon className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('link')} title="Insert Link">
+                            <Link2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('table')} title="Insert Table">
+                            <TableProperties className="h-4 w-4" />
+                        </Button>
+                    </div>
+
+                    <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                         Editor (Markdown)
                     </div>
                     <Textarea
+                        ref={textareaRef}
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         className="flex-1 resize-none border-0 p-6 focus-visible:ring-0 font-mono text-sm leading-relaxed bg-slate-50"
@@ -306,6 +410,18 @@ export default function AdminTopicEditorPage() {
                                     li: ({ ...props }) => <li className="pl-1" {...props} />,
 
                                     blockquote: ({ ...props }) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-3 my-4 italic text-slate-700 rounded-r" {...props} />,
+
+                                    // Premium Tables
+                                    table: ({ ...props }) => (
+                                        <div className="my-6 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                                            <table className="min-w-full divide-y divide-slate-200 border-collapse" {...props} />
+                                        </div>
+                                    ),
+                                    thead: ({ ...props }) => <thead className="bg-slate-50/80" {...props} />,
+                                    th: ({ ...props }) => <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-widest border-b border-slate-200" {...props} />,
+                                    td: ({ ...props }) => <td className="px-6 py-4 text-sm text-slate-600 border-b border-slate-100 last:border-b-0" {...props} />,
+                                    tr: ({ ...props }) => <tr className="hover:bg-slate-50/50 transition-colors even:bg-slate-50/30" {...props} />,
+
                                     code({ inline, className, children, ...props }: any) {
                                         const match = /language-(\w+)/.exec(className || '')
                                         return !inline && match ? (
