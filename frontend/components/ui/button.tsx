@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
-const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'default' | 'outline' | 'ghost' | 'destructive', size?: 'default' | 'sm' | 'lg' | 'icon' }>(
+const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'default' | 'outline' | 'ghost' | 'destructive' | 'secondary', size?: 'default' | 'sm' | 'lg' | 'icon' }>(
     ({ className, variant = 'default', size = 'default', ...props }, ref) => {
         return (
             <button
@@ -16,6 +16,7 @@ const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HT
                     variant === 'default' && "bg-slate-900 text-slate-50 hover:bg-slate-900/90",
                     variant === 'destructive' && "bg-red-500 text-slate-50 hover:bg-red-500/90",
                     variant === 'outline' && "border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900",
+                    variant === 'secondary' && "bg-slate-100 text-slate-900 hover:bg-slate-100/80",
                     variant === 'ghost' && "hover:bg-slate-100 hover:text-slate-900",
                     size === 'default' && "h-10 px-4 py-2",
                     size === 'sm' && "h-9 rounded-md px-3",

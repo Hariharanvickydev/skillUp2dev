@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Default to the value in docker-compose.yml
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/skillup2dev")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://ideas2it:password@localhost:5432/skillup2dev")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

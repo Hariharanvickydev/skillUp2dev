@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ArrowLeft, Brain, Plus, Users, Calendar, Loader2 } from 'lucide-react'
+import { toast } from "sonner"
 
 interface Exam {
     id: string
@@ -84,7 +85,7 @@ export default function ExamLibraryPage() {
             router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${exam.id}`)
         } catch (error) {
             console.error('Error creating exam:', error)
-            alert(`Failed to create exam: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            toast.error(`Failed to create exam: ${error instanceof Error ? error.message : 'Unknown error'}`)
         } finally {
             setCreating(false)
         }

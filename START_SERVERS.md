@@ -13,31 +13,55 @@ This document provides instructions to manually start the backend and frontend s
 
 ## Starting the Backend Server
 
-### 1. Navigate to Backend Directory
+### Option 1: Using the Launcher Script (Recommended)
+
+The launcher script lets you choose the database at runtime.
+
+#### SQLite (Development/Testing)
 ```bash
-cd /Users/ideas2it/Documents/AI\ agent/backend
+./start-backend.sh sqlite
 ```
 
-### 2. Activate Virtual Environment
+#### PostgreSQL (Production)
 ```bash
-source venv/bin/activate
-```
-
-### 3. Start Uvicorn Server
-```bash
-uvicorn app.main:app --reload
+./start-backend.sh postgres
 ```
 
 **Expected Output**:
 ```
+🚀 SkillUp2Dev Backend Launcher
+
+✓ Using PostgreSQL
+  Database: skillup2dev
+  Host: localhost:5432
+
+Starting backend server...
+
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process
-INFO:     Started server process
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
 ```
 
 **Backend will be available at**: `http://localhost:8000`
+
+---
+
+### Option 2: Manual Start (Traditional)
+
+#### 1. Navigate to Backend Directory
+```bash
+cd /Users/ideas2it/Documents/AI\ agent/backend
+```
+
+#### 2. Activate Virtual Environment
+```bash
+source venv/bin/activate
+```
+
+#### 3. Start Uvicorn Server
+```bash
+python -m uvicorn app.main:app --reload
+```
+
+**Note**: This uses the database configured in `backend/.env` file.
 
 ---
 
@@ -71,9 +95,14 @@ npm run dev
 
 ## Quick Start Commands
 
-### Terminal 1 (Backend)
+### Terminal 1 (Backend with SQLite)
 ```bash
-cd /Users/ideas2it/Documents/AI\ agent/backend && source venv/bin/activate && uvicorn app.main:app --reload
+./start-backend.sh sqlite
+```
+
+### Terminal 1 (Backend with PostgreSQL)
+```bash
+./start-backend.sh postgres
 ```
 
 ### Terminal 2 (Frontend)
@@ -124,7 +153,14 @@ npm install
 
 ### Environment Variables
 
-Ensure `GEMINI_API_KEY` is set in your environment or `.env` file for the backend to work properly.
+**Required**:
+- `GEMINI_API_KEY`: Set in `backend/.env` for AI content generation
+
+**Database Configuration**:
+- Use launcher script: `./start-backend.sh [sqlite|postgres]`
+- Or set `DATABASE_URL` in `backend/.env`:
+  - SQLite: `sqlite:///./skillup2dev.db`
+  - PostgreSQL: `postgresql://skillup_user:skillup_password@localhost:5432/skillup2dev`
 
 ---
 

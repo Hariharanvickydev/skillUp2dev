@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { toast } from "sonner"
 
 export default function ExamPage() {
     const params = useParams()
@@ -23,6 +24,13 @@ export default function ExamPage() {
     useEffect(() => {
         fetchExam()
     }, [examId])
+
+    // Scroll to top when results are shown
+    useEffect(() => {
+        if (submitted && result) {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+    }, [submitted, result])
 
     const fetchExam = async () => {
         try {
@@ -47,7 +55,7 @@ export default function ExamPage() {
 
     const handleSubmit = async () => {
         if (answers.includes(-1)) {
-            alert('Please answer all questions before submitting')
+            toast.error('Please answer all questions before submitting')
             return
         }
 
@@ -67,14 +75,14 @@ export default function ExamPage() {
             setSubmitted(true)
         } catch (error) {
             console.error('Error submitting exam:', error)
-            alert('Failed to submit exam')
+            toast.error('Failed to submit exam')
         } finally {
             setSubmitting(false)
         }
     }
 
-    if (loading) return <div className="p-24">Loading exam...</div>
-    if (!exam) return <div className="p-24">Exam not found</div>
+    if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading exam...</div>
+    if (!exam) return <div className="p-4 sm:p-8 md:p-12">Exam not found</div>
 
     return (
         <main className="flex min-h-screen flex-col bg-slate-50">
@@ -114,8 +122,8 @@ export default function ExamPage() {
                                             key={oIndex}
                                             onClick={() => handleAnswerSelect(qIndex, oIndex)}
                                             className={`w-full text-left p-4 rounded-lg border-2 transition-all ${answers[qIndex] === oIndex
-                                                    ? 'border-indigo-600 bg-indigo-50'
-                                                    : 'border-slate-200 hover:border-slate-300'
+                                                ? 'border-indigo-600 bg-indigo-50'
+                                                : 'border-slate-200 hover:border-slate-300'
                                                 }`}
                                         >
                                             {option}
@@ -206,10 +214,10 @@ export default function ExamPage() {
                                                     <div
                                                         key={oIndex}
                                                         className={`p-3 rounded-lg border-2 ${isCorrectOption
-                                                                ? 'border-green-500 bg-green-50'
-                                                                : isUserAnswer
-                                                                    ? 'border-red-500 bg-red-50'
-                                                                    : 'border-slate-200'
+                                                            ? 'border-green-500 bg-green-50'
+                                                            : isUserAnswer
+                                                                ? 'border-red-500 bg-red-50'
+                                                                : 'border-slate-200'
                                                             }`}
                                                     >
                                                         {option}

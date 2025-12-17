@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, Play, CheckCircle, Loader2, FileText, Download, Share2, Mail, Copy } from "lucide-react"
+import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, Play, CheckCircle, CheckCircle2, Loader2, FileText, Download, Share2, Mail, Copy } from "lucide-react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { toast } from "sonner"
 
 export default function CourseDetailPage() {
     const params = useParams()
@@ -23,6 +24,7 @@ export default function CourseDetailPage() {
     const [topics, setTopics] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [generating, setGenerating] = useState(false)
+    const [completedTopicIds, setCompletedTopicIds] = useState<Set<string>>(new Set())
 
     // Content Dialog State
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -48,6 +50,18 @@ export default function CourseDetailPage() {
             const data = await getCourse(id)
             setCourse(data)
             if (data.topics) setTopics(data.topics)
+
+            // Fetch user progress
+            const progressRes = await fetch(`http://localhost:8000/progress/courses/${id}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            })
+            const progressData = await progressRes.json()
+            const completedIds = new Set<string>(
+                progressData
+                    .filter((p: any) => p.completed)
+                    .map((p: any) => String(p.topic_id))
+            )
+            setCompletedTopicIds(completedIds)
         } catch (e) {
             console.error(e)
         } finally {
@@ -86,7 +100,7 @@ export default function CourseDetailPage() {
             // Use browser's native print dialog which handles all CSS properly
             const element = document.querySelector('.prose')
             if (!element) {
-                alert('Content not found')
+                toast.error('Content not found')
                 return
             }
 
@@ -177,7 +191,7 @@ export default function CourseDetailPage() {
             const printWindow = window.open(url, '_blank')
 
             if (!printWindow) {
-                alert('Please allow popups to export PDF')
+                toast.error('Please allow popups to export PDF')
                 URL.revokeObjectURL(url)
                 return
             }
@@ -192,7 +206,7 @@ export default function CourseDetailPage() {
             console.log('Print dialog opened')
         } catch (error) {
             console.error('Error opening print dialog:', error)
-            alert(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            toast.error(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
     }
 
@@ -210,7 +224,7 @@ export default function CourseDetailPage() {
     const handleCopyLink = async () => {
         try {
             await navigator.clipboard.writeText(window.location.href)
-            alert('Link copied to clipboard!')
+            toast.success('Link copied to clipboard!')
         } catch (error) {
             console.error('Error copying link:', error)
         }
@@ -256,7 +270,7 @@ export default function CourseDetailPage() {
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert("Failed to approve")
+            toast.error('Failed to approve')
         }
     }
 
@@ -272,7 +286,7 @@ export default function CourseDetailPage() {
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert("Failed to update topic")
+            toast.error('Failed to update topic')
         }
     }
 
@@ -285,7 +299,7 @@ export default function CourseDetailPage() {
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert("Failed to delete topic")
+            toast.error('Failed to delete topic')
         }
     }
 
@@ -310,7 +324,7 @@ export default function CourseDetailPage() {
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert("Failed to add topic")
+            toast.error('Failed to add topic')
         }
     }
 
@@ -322,7 +336,7 @@ export default function CourseDetailPage() {
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert("Failed to generate topics")
+            toast.error('Failed to generate topics')
         } finally {
             setGenerating(false)
         }
@@ -339,15 +353,15 @@ export default function CourseDetailPage() {
 
             if (!response.ok) {
                 const error = await response.json()
-                alert(error.detail || 'Failed to publish course')
+                toast.error(error.detail || 'Failed to publish course')
                 return
             }
 
-            alert('Course published successfully!')
+            toast.success('Course published successfully!')
             fetchCourse()
         } catch (e) {
             console.error(e)
-            alert('Failed to publish course')
+            toast.error('Failed to publish course')
         }
     }
 
@@ -362,23 +376,23 @@ export default function CourseDetailPage() {
             router.push('/')
         } catch (e) {
             console.error(e)
-            alert("Failed to delete course")
+            toast.error('Failed to delete course')
         }
     }
 
-    if (loading) return <div className="p-24">Loading...</div>
-    if (!course) return <div className="p-24">Course not found</div>
+    if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading...</div>
+    if (!course) return <div className="p-4 sm:p-8 md:p-12">Course not found</div>
 
     return (
-        <main className="flex min-h-screen flex-col p-4 sm:p-8 md:p-12 lg:p-24 bg-slate-50">
+        <main className="flex min-h-screen flex-col p-4 sm:p-6 md:p-8 lg:p-12 bg-slate-50">
             <div className="max-w-6xl mx-auto w-full">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-                    <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/learn')}>
+                    <div className="flex items-start gap-3 sm:gap-4 w-full sm:w-auto">
+                        <Button variant="ghost" size="icon" onClick={() => router.push('/learn')} className="flex-shrink-0 mt-1">
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 break-words">{course.title}</h1>
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 break-words leading-tight">{course.title}</h1>
                     </div>
                 </div>
 
@@ -417,8 +431,8 @@ export default function CourseDetailPage() {
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-sm font-medium">• {topic.title}</span>
-                                                                {topic.status === 'APPROVED' && (
-                                                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                                                {completedTopicIds.has(topic.id) && (
+                                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
                                                                 )}
                                                             </div>
                                                             <p className="text-xs text-slate-500 mt-1">{topic.description}</p>

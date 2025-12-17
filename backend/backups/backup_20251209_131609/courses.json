@@ -1,0 +1,46 @@
+[
+  {
+    "id": "d560de33-2f5a-4028-866f-0155562993c6",
+    "title": "Python Programming Fundamentals",
+    "description": "Master Python from basics to advanced concepts. Learn variables, functions, OOP, and more.",
+    "settings": {},
+    "status": "PUBLISHED",
+    "creator_id": null,
+    "is_published": false,
+    "created_at": "2025-12-08T15:16:34",
+    "updated_at": "2025-12-08T15:16:34"
+  },
+  {
+    "id": "7c76da02-e004-480e-98b0-7b41b3c36b61",
+    "title": "C# Complete Boot Camp",
+    "description": ".NET Framework\nCLR\nFCL\nJava vs C#\nC# History\nC# Features\nC# Example\nC# Variables\nC# Data Types\nC# Operators\nC# Keywords\n\nC# if-else\nC# switch\nC# For Loop\nC# While Loop\nC# Do-While Loop\nC# Break\nC# Continue\nC# Goto\nC# Comments\n\n\nC# Function\nC# Call By Value\nC# Call By Reference\nC# Out Parameter\n\nC# Arrays\nC# Array to Function\nC# Multidimensional Array\nC# Jagged Arrays\nC# Params\nC# Array class\nC# Command Line Args\n\nC# Object and Class\nC# Constructor\nC# Destructor\nC# this\nC# static\nC# static class\nC# static constructor\nC# Structs\nC# Enum\n\nC# Properties\nC# Inheritance\nC# Inheritance\nC# Aggregation\nC# Polymorphism\nC# Method Overloading\nC# Method Overriding\nC# Base\nC# Polymorphism\nC# Sealed\nC# Abstraction\nC# Abstract\nC# Interface\nC# Namespace\nC# Namespaces\nC# Access Modifiers\nC# Encapsulation\nC# Strings\nC# Strings\nC# Exception Handling\nC# try/catch\nC# finally\nC# Custom Exception\nC# checked unchecked\nC# SystemException\n\nC# FileStream\nC# StreamWriter\nC# StreamReader\nC# TextWriter\nC# TextReader\nC# BinaryWriter\nC# BinaryReader\nC# StringWriter\nC# StringReader\nC# FileInfo\nC# DirectoryInfo\nC# Serialization\nC# Deserialization\nC# System.IO\nC# Collections\nC# Collections\nC# List<T>\nC# HashSet<T>\nC# SortedSet<T>\nC# Stack<T>\nC# Queue<T>\nC# LinkedList<T>\nC# Dictionary<K,V>\nC# SortedDictionary<K,V>\nC# SortedList<K,V>\n\nC# Generics\nC# Delegates\nC# Delegates\nC# Reflection\nC# Reflection\n\nAnonymous Function\nC# Multithreading\nC# Multithreading\nC# Thread Life Cycle\nC# Thread class\nC# Main Thread\nC# Thread Example\nC# Thread Sleep\nC# Thread Abort\nC# Thread Join\nC# Thread Name\nC# ThreadPriority\n\nC# Synchronization\nC# Web Service\nWeb Services in C#\nC# Misc\nEvents in C#\nRegular Expression in C#\nDateTime in C#\nType Casting in C#\n\nC# ReadLine() Method\nC# Operator Overloading\nC# New Features\nC# New Features (40+)\n\nSOLID Principles\nDesign Patterns C#",
+    "settings": {},
+    "status": "DRAFT",
+    "creator_id": "7cbfcc93-c0ad-4f1f-a7e3-ecd8cba72440",
+    "is_published": false,
+    "created_at": "2025-12-09T05:51:47",
+    "updated_at": "2025-12-09T05:51:47"
+  },
+  {
+    "id": "beb40801-1138-4af3-8f16-2620075766c5",
+    "title": "Java Beginner BootCamp",
+    "description": "From Beginner level to advanced",
+    "settings": {},
+    "status": "DRAFT",
+    "creator_id": "7cbfcc93-c0ad-4f1f-a7e3-ecd8cba72440",
+    "is_published": false,
+    "created_at": "2025-12-09T06:22:14",
+    "updated_at": "2025-12-09T06:22:14"
+  },
+  {
+    "id": "9c79a528-100a-484e-b08e-3d54ef395dce",
+    "title": "CS8391 \u2013 DATA STRUCTURES",
+    "description": "UNIT I \u2013 ALGORITHM ANALYSIS & ARRAYS\nIntroduction to Data Structures. Definition and characteristics of algorithms. Performance analysis of algorithms. Time complexity and space complexity. Asymptotic notations \u2013 Big O, Big Omega and Big Theta. Best, worst and average case analysis. Linear search and binary search. Definition of array. One dimensional, two dimensional and multidimensional arrays. Sparse matrix representation. Applications of arrays.\n\nUNIT II \u2013 STACK & QUEUE\nDefinition of stack. Stack operations. Stack implementation using array and linked list. Applications of stack \u2013 recursion, infix to postfix conversion, postfix expression evaluation, parenthesis checking. Definition of queue. Simple queue, circular queue, deque and priority queue. Queue implementation using array and linked list. Applications of queue.\n\nUNIT III \u2013 LINKED LIST\nDefinition of linked list. Singly linked list. Doubly linked list. Circular linked list. Insertion and deletion operations for all types of linked lists. Polynomial representation and manipulation using linked lists. Applications of linked lists.\n\nUNIT IV \u2013 TREES & GRAPH\nTree terminology. Binary tree representation. Binary search tree. Tree traversals \u2013 inorder, preorder and postorder. Heap. Balanced trees. Introduction to graphs. Graph representations. Graph traversals \u2013 breadth first search and depth first search. Applications of trees and graphs.\n\nUNIT V \u2013 SORTING, HASHING & FILE STRUCTURE\nSorting techniques \u2013 bubble sort, selection sort, insertion sort, merge sort, quick sort and heap sort. Hashing concepts. Hash functions. Collision handling techniques \u2013 open addressing and chaining. File structure concepts. Sequential file organization and direct access files.",
+    "settings": {},
+    "status": "DRAFT",
+    "creator_id": "7cbfcc93-c0ad-4f1f-a7e3-ecd8cba72440",
+    "is_published": false,
+    "created_at": "2025-12-09T07:41:38",
+    "updated_at": "2025-12-09T07:41:38"
+  }
+]

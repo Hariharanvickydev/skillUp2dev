@@ -50,35 +50,35 @@ export default function LearnPage() {
         course.description?.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    if (authLoading || loading) return <div className="p-24">Loading...</div>
+    if (authLoading || loading) return <div className="p-4 sm:p-8 md:p-12">Loading...</div>
     if (!user) return null
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-indigo-50 to-slate-100">
             {/* Header */}
-            <header className="border-b border-slate-200 bg-white px-6 py-4">
+            <header className="border-b border-slate-200 bg-white px-4 sm:px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">SkillUp2Dev</h1>
-                        <p className="text-sm text-slate-500">Learn at your own pace</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">SkillUp2Dev</h1>
+                        <p className="text-xs sm:text-sm text-slate-500">Learn at your own pace</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <div className="hidden sm:flex items-center gap-2 text-sm">
                             <User className="h-4 w-4 text-slate-500" />
                             <span className="text-slate-700">{user.email}</span>
                         </div>
                         <Button variant="outline" size="sm" onClick={logout}>
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Logout
+                            <LogOut className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Logout</span>
                         </Button>
                     </div>
                 </div>
             </header>
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-6 py-12">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
                 {/* Search Bar */}
-                <div className="mb-8">
+                <div className="mb-6 sm:mb-8">
                     <div className="relative max-w-2xl">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
                         <Input
@@ -86,7 +86,7 @@ export default function LearnPage() {
                             placeholder="Search courses..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 py-6 text-lg"
+                            className="pl-10 py-5 sm:py-6 text-base sm:text-lg"
                         />
                     </div>
                 </div>

@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Download, Loader2, Brain } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, Brain, CheckCircle2, Circle } from 'lucide-react'
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { toast } from "sonner"
 
 export default function TopicContentPage() {
     const params = useParams()
@@ -19,6 +20,8 @@ export default function TopicContentPage() {
     const [course, setCourse] = useState<any>(null)
     const [content, setContent] = useState<string>('')
     const [loading, setLoading] = useState(true)
+    const [isCompleted, setIsCompleted] = useState(false)
+    const [completionLoading, setCompletionLoading] = useState(false)
 
     useEffect(() => {
         fetchData()
@@ -43,10 +46,44 @@ export default function TopicContentPage() {
             })
             const contentData = await contentRes.json()
             setContent(contentData.content || '')
+
+            // Fetch completion status
+            const progressRes = await fetch(`http://localhost:8000/progress/courses/${courseId}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            })
+            const progressData = await progressRes.json()
+            const topicProgress = progressData.find((p: any) => p.topic_id === topicId)
+            setIsCompleted(topicProgress?.completed || false)
         } catch (error) {
             console.error('Error fetching data:', error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleToggleComplete = async () => {
+        setCompletionLoading(true)
+        try {
+            if (isCompleted) {
+                // Unmark as complete
+                await fetch(`http://localhost:8000/progress/topics/${topicId}/complete`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                })
+                setIsCompleted(false)
+            } else {
+                // Mark as complete
+                await fetch(`http://localhost:8000/progress/topics/${topicId}/complete`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                })
+                setIsCompleted(true)
+            }
+        } catch (error) {
+            console.error('Error toggling completion:', error)
+            toast.error('Failed to update completion status')
+        } finally {
+            setCompletionLoading(false)
         }
     }
 
@@ -56,7 +93,7 @@ export default function TopicContentPage() {
         try {
             const element = document.querySelector('.prose')
             if (!element) {
-                alert('Content not found')
+                toast.error('Content not found')
                 return
             }
 
@@ -145,7 +182,7 @@ export default function TopicContentPage() {
             const printWindow = window.open(url, '_blank')
 
             if (!printWindow) {
-                alert('Please allow popups to export PDF')
+                toast.error('Please allow popups to export PDF')
                 URL.revokeObjectURL(url)
                 return
             }
@@ -157,40 +194,60 @@ export default function TopicContentPage() {
             }
         } catch (error) {
             console.error('Error exporting PDF:', error)
-            alert('Failed to export PDF')
+            toast.error('Failed to export PDF')
         }
     }
 
-    if (loading) return <div className="p-24">Loading...</div>
-    if (!topic || !course) return <div className="p-24">Topic not found</div>
+    if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading...</div>
+    if (!topic || !course) return <div className="p-4 sm:p-8 md:p-12">Topic not found</div>
 
     return (
         <main className="flex min-h-screen flex-col bg-slate-50">
             {/* Header */}
             <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" onClick={() => router.push(`/learn/courses/${courseId}`)}>
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+                    <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-0">
+                        <Button variant="ghost" size="icon" onClick={() => router.push(`/learn/courses/${courseId}`)} className="flex-shrink-0 mt-1">
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <div>
-                            <h1 className="text-lg sm:text-xl font-bold text-slate-900">{topic.title}</h1>
-                            <p className="text-sm text-slate-500">{course.title}</p>
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 break-words leading-tight">{topic.title}</h1>
+                            <p className="text-xs sm:text-sm text-slate-500 truncate">{course.title}</p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 mt-3 sm:mt-0 sm:absolute sm:right-4 sm:top-3">
+                        <Button
+                            size="sm"
+                            onClick={handleToggleComplete}
+                            disabled={completionLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap flex-1 sm:flex-none min-h-[44px]"
+                        >
+                            {completionLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Loading...
+                                </>
+                            ) : (
+                                <span>
+                                    {isCompleted ? 'Completed' : 'Mark as Complete'}
+                                </span>
+                            )}
+                        </Button>
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => router.push(`/learn/courses/${courseId}/topics/${topicId}/exams`)}
                             disabled={!content}
+                            className="flex-1 sm:flex-none min-h-[44px]"
                         >
                             <Brain className="mr-2 h-4 w-4" />
                             <span className="hidden sm:inline">Practice Exams</span>
+                            <span className="sm:hidden">Exams</span>
                         </Button>
-                        <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                        <Button variant="outline" size="sm" onClick={handleExportPDF} className="flex-1 sm:flex-none min-h-[44px]">
                             <Download className="mr-2 h-4 w-4" />
                             <span className="hidden sm:inline">Export PDF</span>
+                            <span className="sm:hidden">PDF</span>
                         </Button>
                     </div>
                 </div>

@@ -22,18 +22,183 @@ def read_courses(
     skip: int = 0,
     limit: int = 100,
     published_only: bool = False,
-    db: Session = Depends(database.get_db)
+    organization_id: Optional[UUID] = None,
+    db: Session = Depends(database.get_db),
+    current_user: Optional[models.User] = Depends(auth.get_current_active_user)
 ):
-    """List courses (public endpoint, optionally filter by published)"""
-    courses = crud.get_courses(db, skip=skip, limit=limit, published_only=published_only)
+    """List courses (public endpoint, optionally filter by published or org)"""
+    
+    # If Org Admin, default to their org if not specified? 
+    # Actually, for Org Admin view we might want to see THEIR courses.
+    if current_user and current_user.role == models.UserRole.ORG_ADMIN:
+        # If they specifically ask for another org, block it? 
+        # For now, let's just allow filtering.
+        if not organization_id:
+             organization_id = current_user.organization_id
+
+    # Filter for Teachers/HODs: Only show assigned courses
+    if current_user and current_user.role in [models.UserRole.TEACHER, models.UserRole.DEPT_HEAD]:
+        courses = crud.get_courses_for_user(db, current_user, skip=skip, limit=limit)
+    else:
+        courses = crud.get_courses(db, skip=skip, limit=limit, published_only=published_only, organization_id=organization_id)
+        
     return courses
 
 @router.get("/{course_id}", response_model=schemas.Course)
-def read_course(course_id: UUID, db: Session = Depends(database.get_db)):
+def read_course(
+    course_id: UUID, 
+    db: Session = Depends(database.get_db),
+    current_user: Optional[models.User] = Depends(auth.get_current_active_user)
+):
     course = crud.get_course(db, course_id=course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
+        
+    # Check for existing clone if viewing a library course as Org Admin
+    if course.is_library_course and current_user and current_user.role == models.UserRole.ORG_ADMIN and current_user.organization_id:
+        clone = db.query(models.Course).filter(
+            models.Course.parent_course_id == course_id,
+            models.Course.organization_id == current_user.organization_id
+        ).first()
+        
+        if clone:
+            course.existing_clone_id = clone.id
+            
     return course
+
+@router.patch("/{course_id}", response_model=schemas.Course)
+def update_course(
+    course_id: UUID, 
+    course_update: schemas.CourseUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Update course details (Admin/HOD/AssignedTeacher)"""
+    db_course = crud.get_course(db, course_id=course_id)
+    if not db_course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Permissions Logic
+    is_admin = current_user.role in [models.UserRole.ORG_ADMIN, models.UserRole.SUPER_ADMIN]
+    # Check if assigned as primary OR in assignees list
+    is_assigned = db_course.assigned_teacher_id == current_user.id or current_user in db_course.assignees
+    
+    # HOD Logic: Am I the leader of the group the assigned teacher belongs to?
+    is_hod = False
+    if db_course.assigned_teacher and db_course.assigned_teacher.org_group_id:
+        group = db.query(models.OrgGroup).filter(models.OrgGroup.id == db_course.assigned_teacher.org_group_id).first()
+        if group and group.leader_id == current_user.id:
+            is_hod = True
+            
+    if not (is_admin or is_assigned or is_hod):
+        raise HTTPException(status_code=403, detail="Not authorized to update this course")
+
+    # Update fields
+    update_data = course_update.dict(exclude_unset=True)
+    
+    # Restrict what Teacher can update
+    if is_assigned and not (is_admin or is_hod):
+        # Teacher can only update content-related fields
+        if "assigned_teacher_id" in update_data:
+            del update_data["assigned_teacher_id"]
+        if "assignee_ids" in update_data:
+            del update_data["assignee_ids"]
+
+    # Handle M2M Assignees
+    if "assignee_ids" in update_data:
+        ids = update_data.pop("assignee_ids")
+        if ids is not None:
+             assignees = db.query(models.User).filter(models.User.id.in_(ids)).all()
+             db_course.assignees = assignees
+            
+    for key, value in update_data.items():
+        setattr(db_course, key, value)
+        
+    db.commit()
+    db.refresh(db_course)
+    return db_course
+
+@router.post("/{course_id}/submit")
+def submit_course_for_approval(
+    course_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Teacher submits course for approval"""
+    course = crud.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    if course.assigned_teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the assigned teacher can submit")
+        
+    course.status = "PENDING_APPROVAL"
+    db.commit()
+    return {"message": "Course submitted for approval"}
+
+@router.post("/{course_id}/approve")
+def approve_course(
+    course_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """HOD/Admin approves the course"""
+    course = crud.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Permission: Admin or HOD of Teacher
+    is_admin = current_user.role in [models.UserRole.ORG_ADMIN, models.UserRole.SUPER_ADMIN]
+    is_hod = False
+    
+    if course.assigned_teacher and course.assigned_teacher.org_group_id:
+        group = db.query(models.OrgGroup).filter(models.OrgGroup.id == course.assigned_teacher.org_group_id).first()
+        # Recursive check? No, minimal viable: Direct leader.
+        if group and group.leader_id == current_user.id:
+            is_hod = True
+            
+    if not (is_admin or is_hod):
+        raise HTTPException(status_code=403, detail="Not authorized to approve (Must be Admin or HOD)")
+
+    course.status = "APPROVED"
+    # Optionally Publish here? Or let them call publish separately?
+    # Let's auto-publish or define APPROVED as ready.
+    # Plan says "Approve & Publish". Let's update status to APPROVED first.
+    
+    db.commit()
+    return {"message": "Course approved", "status": "APPROVED"}
+
+@router.post("/{course_id}/reject")
+def reject_course(
+    course_id: UUID,
+    reason: str, # Form data or query param? Query param simple for now
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """HOD/Admin requests changes"""
+    course = crud.get_course(db, course_id=course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Reuse permission logic
+    is_admin = current_user.role in [models.UserRole.ORG_ADMIN, models.UserRole.SUPER_ADMIN]
+    is_hod = False
+    if course.assigned_teacher and course.assigned_teacher.org_group_id:
+        group = db.query(models.OrgGroup).filter(models.OrgGroup.id == course.assigned_teacher.org_group_id).first()
+        if group and group.leader_id == current_user.id:
+            is_hod = True
+            
+    if not (is_admin or is_hod):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    course.status = "CHANGES_REQUESTED"
+    # Store reason in flags?
+    current_flags = course.flags or {}
+    current_flags["rejection_reason"] = reason
+    course.flags = current_flags
+    
+    db.commit()
+    return {"message": "Changes requested", "status": "CHANGES_REQUESTED"}
 
 @router.post("/{course_id}/generate-topics", response_model=List[schemas.Topic])
 def generate_topics(
@@ -50,13 +215,9 @@ def generate_topics(
     import google.generativeai as genai
     import os
     import json
+    from ..ai import get_ai_model
     
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = get_ai_model()
 
 
     prompt = f"""

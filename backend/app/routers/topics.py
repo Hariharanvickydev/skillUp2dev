@@ -24,14 +24,16 @@ def generate_content(
     course = db.query(models.Course).filter(models.Course.id == topic.course_id).first()
 
     # Setup AI
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
-
-    genai.configure(api_key=api_key)
-
-    # 1. Define the model
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    # Setup AI
+    try:
+        from ..ai import get_ai_model
+        model = get_ai_model()
+    except ImportError as e:
+        print(f"CRITICAL ERROR: Failed to import AI module: {e}")
+        raise HTTPException(status_code=500, detail=f"Server Configuration Error: Could not load AI module. {str(e)}")
+    except Exception as e:
+        print(f"CRITICAL ERROR: Failed to initialize AI model: {e}")
+        raise HTTPException(status_code=500, detail=f"AI Configuration Error: {str(e)}")
 
     # 2. Prepare the prompt with optional feedback
     feedback = request_body.get('feedback') if request_body else None
@@ -130,7 +132,10 @@ Please address this feedback and decide whether to:
 
     db.commit()
 
-    return {"message": "Content generated successfully"}
+    return {
+        "message": "Content generated successfully",
+        "content": content_text
+    }
 
 @router.get("/{topic_id}/content", response_model=schemas.TopicContent)
 def get_topic_content(
@@ -211,4 +216,39 @@ def delete_topic(
     db.commit()
     
     return {"message": "Topic deleted successfully"}
+@router.put("/{topic_id}/content")
+def update_topic_content(
+    topic_id: UUID,
+    content_body: dict = Body(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """Update topic content manually (Admin/Teacher)"""
+    topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+        
+    content_text = content_body.get('content')
+    if content_text is None:
+        raise HTTPException(status_code=400, detail="Content is required")
 
+    # Check if content already exists
+    existing_content = db.query(models.TopicContent).filter(
+        models.TopicContent.topic_id == topic_id
+    ).first()
+
+    if existing_content:
+        existing_content.content = content_text
+        existing_content.updated_at = datetime.utcnow()
+    else:
+        new_content = models.TopicContent(
+            topic_id=topic_id,
+            content=content_text
+        )
+        db.add(new_content)
+    
+    # NEW: Mark as synced (since user manually merged/edited) to avoid flagging as out-of-date immediately
+    topic.last_synced_at = datetime.utcnow()
+
+    db.commit()
+    return {"message": "Content updated successfully"}
