@@ -1,14 +1,14 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Download, Loader2, Brain, CheckCircle2, Circle } from 'lucide-react'
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { ArrowLeft, CheckCircle2, ChevronRight, Menu, Brain, PanelLeftClose, PanelLeftOpen, Flag, Bookmark } from "lucide-react"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+// Use the shared MarkdownPreview component for consistent styling with Admin
+import { MarkdownPreview } from "@/components/ui/markdown-preview"
 
 export default function TopicContentPage() {
     const params = useParams()
@@ -20,8 +20,14 @@ export default function TopicContentPage() {
     const [course, setCourse] = useState<any>(null)
     const [content, setContent] = useState<string>('')
     const [loading, setLoading] = useState(true)
-    const [isCompleted, setIsCompleted] = useState(false)
+    const [completedTopicIds, setCompletedTopicIds] = useState<Set<string>>(new Set())
+    const [bookmarkedTopicIds, setBookmarkedTopicIds] = useState<Set<string>>(new Set())
     const [completionLoading, setCompletionLoading] = useState(false)
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+    // Derived state for navigation
+    const [prevTopic, setPrevTopic] = useState<any>(null)
+    const [nextTopic, setNextTopic] = useState<any>(null)
 
     useEffect(() => {
         fetchData()
@@ -40,6 +46,20 @@ export default function TopicContentPage() {
             const foundTopic = courseData.topics?.find((t: any) => t.id === topicId)
             setTopic(foundTopic)
 
+            // Identify all navigable topics (Published & Approved & Nested)
+            const allTopics = courseData.topics
+                .filter((t: any) => !t.parent_topic_id && t.is_published)
+                .sort((a: any, b: any) => a.order - b.order)
+                .flatMap((parent: any) =>
+                    courseData.topics
+                        .filter((t: any) => t.parent_topic_id === parent.id && t.status === 'APPROVED')
+                        .sort((a: any, b: any) => a.order - b.order)
+                )
+
+            const currentIndex = allTopics.findIndex((t: any) => t.id === topicId)
+            setPrevTopic(currentIndex > 0 ? allTopics[currentIndex - 1] : null)
+            setNextTopic(currentIndex < allTopics.length - 1 ? allTopics[currentIndex + 1] : null)
+
             // Fetch content
             const contentRes = await fetch(`http://localhost:8000/topics/${topicId}/content`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -47,13 +67,25 @@ export default function TopicContentPage() {
             const contentData = await contentRes.json()
             setContent(contentData.content || '')
 
-            // Fetch completion status
+            // Fetch progress
             const progressRes = await fetch(`http://localhost:8000/progress/courses/${courseId}`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             })
             const progressData = await progressRes.json()
-            const topicProgress = progressData.find((p: any) => p.topic_id === topicId)
-            setIsCompleted(topicProgress?.completed || false)
+            const completedIds = new Set<string>(
+                progressData
+                    .filter((p: any) => p.completed)
+                    .map((p: any) => String(p.topic_id))
+            )
+            setCompletedTopicIds(completedIds)
+
+            const bookmarkedIds = new Set<string>(
+                progressData
+                    .filter((p: any) => p.is_bookmarked)
+                    .map((p: any) => String(p.topic_id))
+            )
+            setBookmarkedTopicIds(bookmarkedIds)
+
         } catch (error) {
             console.error('Error fetching data:', error)
         } finally {
@@ -61,278 +93,301 @@ export default function TopicContentPage() {
         }
     }
 
-    const handleToggleComplete = async () => {
+    const handleToggleComplete = async (shouldNavigate = false) => {
         setCompletionLoading(true)
+        const isCompleted = completedTopicIds.has(topicId)
         try {
             if (isCompleted) {
-                // Unmark as complete
                 await fetch(`http://localhost:8000/progress/topics/${topicId}/complete`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 })
-                setIsCompleted(false)
+                completedTopicIds.delete(topicId)
+                setCompletedTopicIds(new Set(completedTopicIds))
             } else {
-                // Mark as complete
                 await fetch(`http://localhost:8000/progress/topics/${topicId}/complete`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 })
-                setIsCompleted(true)
+                setCompletedTopicIds(new Set(completedTopicIds.add(topicId)))
+
+                if (shouldNavigate && nextTopic) {
+                    router.push(`/learn/courses/${courseId}/topics/${nextTopic.id}`)
+                }
             }
         } catch (error) {
             console.error('Error toggling completion:', error)
-            toast.error('Failed to update completion status')
+            toast.error('Failed to update status')
         } finally {
             setCompletionLoading(false)
         }
     }
 
-    const handleExportPDF = async () => {
-        if (!topic || !content) return
+    const handleToggleBookmark = async (e: React.MouseEvent, targetTopicId: string) => {
+        e.preventDefault() // Prevent navigation if coming from link
+        e.stopPropagation()
 
+        const isBookmarked = bookmarkedTopicIds.has(targetTopicId)
         try {
-            const element = document.querySelector('.prose')
-            if (!element) {
-                toast.error('Content not found')
-                return
-            }
-
-            const styles = Array.from(document.styleSheets)
-                .map(styleSheet => {
-                    try {
-                        return Array.from(styleSheet.cssRules)
-                            .map(rule => rule.cssText)
-                            .join('\n')
-                    } catch (e) {
-                        return ''
-                    }
+            if (isBookmarked) {
+                await fetch(`http://localhost:8000/progress/topics/${targetTopicId}/bookmark`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 })
-                .join('\n')
-
-            const htmlContent = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>${topic.title} - SkillUp2Dev</title>
-                    <style>
-                        ${styles}
-                        body {
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                            line-height: 1.6;
-                            color: #1e293b;
-                            max-width: 800px;
-                            margin: 0 auto;
-                            padding: 40px 20px;
-                        }
-                        .header {
-                            margin-bottom: 40px;
-                            padding-bottom: 20px;
-                            border-bottom: 2px solid #e2e8f0;
-                        }
-                        .header h1 {
-                            margin: 0 0 10px 0;
-                            color: #0f172a;
-                            font-size: 32px;
-                        }
-                        .meta {
-                            color: #64748b;
-                            font-size: 14px;
-                            margin: 5px 0;
-                        }
-                        .footer {
-                            margin-top: 60px;
-                            padding-top: 20px;
-                            border-top: 1px solid #e2e8f0;
-                            text-align: center;
-                            color: #64748b;
-                            font-size: 12px;
-                        }
-                        @media print {
-                            body { 
-                                margin: 20mm;
-                                padding: 0;
-                            }
-                            @page { 
-                                size: A4;
-                                margin: 0;
-                            }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>${topic.title}</h1>
-                        <div class="meta"><strong>Course:</strong> ${course.title}</div>
-                        <div class="meta"><strong>Author:</strong> SkillUp2Dev</div>
-                        <div class="meta"><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
-                    </div>
-                    <div class="content">
-                        ${element.innerHTML}
-                    </div>
-                    <div class="footer">
-                        <p>© ${new Date().getFullYear()} SkillUp2Dev - All Rights Reserved</p>
-                    </div>
-                </body>
-                </html>
-            `
-
-            const blob = new Blob([htmlContent], { type: 'text/html' })
-            const url = URL.createObjectURL(blob)
-            const printWindow = window.open(url, '_blank')
-
-            if (!printWindow) {
-                toast.error('Please allow popups to export PDF')
-                URL.revokeObjectURL(url)
-                return
+                bookmarkedTopicIds.delete(targetTopicId)
+                toast.success("Removed from bookmarks")
+            } else {
+                await fetch(`http://localhost:8000/progress/topics/${targetTopicId}/bookmark`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                })
+                bookmarkedTopicIds.add(targetTopicId)
+                toast.success("Marked for revisit")
             }
-
-            printWindow.onload = () => {
-                setTimeout(() => {
-                    printWindow.print()
-                }, 500)
-            }
+            setBookmarkedTopicIds(new Set(bookmarkedTopicIds))
         } catch (error) {
-            console.error('Error exporting PDF:', error)
-            toast.error('Failed to export PDF')
+            console.error('Error toggling bookmark:', error)
         }
     }
 
-    if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading...</div>
-    if (!topic || !course) return <div className="p-4 sm:p-8 md:p-12">Topic not found</div>
+    const handlePrevious = () => {
+        if (prevTopic) {
+            router.push(`/learn/courses/${courseId}/topics/${prevTopic.id}`)
+        } else {
+            router.push(`/learn/courses/${courseId}`)
+        }
+    }
+
+    const handleNext = () => {
+        if (nextTopic) {
+            router.push(`/learn/courses/${courseId}/topics/${nextTopic.id}`)
+        } else {
+            router.push(`/learn/courses/${courseId}`)
+        }
+    }
+
+    const TopicList = () => {
+        const publishedTopics = course?.topics?.filter((t: any) => !t.parent_topic_id && t.is_published)
+            .flatMap((p: any) => course?.topics?.filter((t: any) => t.parent_topic_id === p.id && t.status === 'APPROVED')) || []
+        const completedCount = publishedTopics.filter((t: any) => completedTopicIds.has(t.id)).length
+        const progressPercentage = publishedTopics.length > 0 ? Math.round((completedCount / publishedTopics.length) * 100) : 0
+
+        return (
+            <div className="py-6">
+                {/* Course Progress Section */}
+                <div className="px-6 mb-6">
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-sm font-semibold text-slate-700">Course Progress</h4>
+                        <span className="text-lg font-bold text-slate-900">{progressPercentage}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+                        <div
+                            className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                            style={{ width: `${progressPercentage}%` }}
+                        ></div>
+                    </div>
+                    <p className="text-xs text-slate-500">Completed {completedCount}/{publishedTopics.length} published topics</p>
+                </div>
+
+                {/* Course Title */}
+                <div className="px-6 mb-6">
+                    <h3 className="font-bold text-slate-900">{course?.title}</h3>
+                </div>
+
+                <div className="px-6 space-y-8">
+                    {course?.topics
+                        .filter((t: any) => !t.parent_topic_id && t.is_published)
+                        .sort((a: any, b: any) => a.order - b.order)
+                        .map((parent: any) => {
+                            const subs = course.topics
+                                .filter((t: any) => t.parent_topic_id === parent.id && t.status === 'APPROVED')
+                                .sort((a: any, b: any) => a.order - b.order)
+                            if (!subs.length) return null
+
+                            return (
+                                <div key={parent.id}>
+                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 pl-2">
+                                        Module {parent.order}: {parent.title}
+                                    </div>
+                                    <div className="space-y-0 relative border-l-2 border-slate-100 ml-2.5 pl-4 pb-4 last:pb-0">
+                                        {subs.map((sub: any, idx: number) => {
+                                            const isActive = sub.id === topicId
+                                            const isCompleted = completedTopicIds.has(sub.id)
+                                            const isBookmarked = bookmarkedTopicIds.has(sub.id)
+
+                                            return (
+                                                <div
+                                                    key={sub.id}
+                                                    onClick={() => router.push(`/learn/courses/${courseId}/topics/${sub.id}`)}
+                                                    onContextMenu={(e) => handleToggleBookmark(e, sub.id)}
+                                                    className="relative py-2 group cursor-pointer flex justify-between items-center pr-2"
+                                                    title="Right click to mark for revisit"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {/* Timeline Dot */}
+                                                        <div
+                                                            className={cn(
+                                                                "absolute left-[-21px] top-3.5 w-3 h-3 rounded-full border-2 bg-white transition-colors z-10",
+                                                                isActive ? "border-indigo-600 bg-indigo-600 ring-2 ring-indigo-100" :
+                                                                    isCompleted ? "border-green-500 bg-green-500" :
+                                                                        "border-slate-300 group-hover:border-indigo-400"
+                                                            )}
+                                                        />
+
+                                                        <div className={cn(
+                                                            "text-sm transition-colors duration-200",
+                                                            isActive ? "font-semibold text-indigo-700" :
+                                                                isCompleted ? "text-slate-600 font-medium" :
+                                                                    "text-slate-500 group-hover:text-slate-900"
+                                                        )}>
+                                                            <span className="line-clamp-1">{sub.title}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {isBookmarked && (
+                                                        <Flag className="h-3 w-3 text-orange-500 fill-orange-500" />
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                </div>
+            </div>
+        )
+    }
+
+    if (loading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
+    if (!topic || !course) return <div className="p-12 text-center text-slate-500">Topic not found</div>
+
+    const isCompleted = completedTopicIds.has(topicId)
 
     return (
-        <main className="flex min-h-screen flex-col bg-slate-50">
-            {/* Header */}
-            <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
-                    <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-0">
-                        <Button variant="ghost" size="icon" onClick={() => router.push(`/learn/courses/${courseId}`)} className="flex-shrink-0 mt-1">
-                            <ArrowLeft className="h-5 w-5" />
+        <div className="flex h-[calc(100vh-theme(spacing.0))] bg-white">
+            {/* Desktop Sidebar */}
+            <div className={cn(
+                "hidden lg:block border-r border-slate-200 h-full overflow-y-auto shrink-0 bg-white transition-all duration-300 ease-in-out",
+                isSidebarOpen ? "w-80" : "w-0 border-r-0"
+            )}>
+                <div className="p-4 border-b border-slate-100 min-w-80 sticky top-0 bg-white z-10">
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/learn/courses/${courseId}`)} className="-ml-2 text-slate-500 hover:text-slate-900">
+                        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Outline
+                    </Button>
+                </div>
+                <div className="min-w-80 pb-10">
+                    <TopicList />
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden w-full bg-slate-50">
+                {/* Top Bar relative to content */}
+                <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 bg-white/80 backdrop-blur-sm z-10 shrink-0 sticky top-0">
+                    <div className="flex items-center gap-3">
+                        {/* Toggle Sidebar Button (Desktop) */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hidden lg:flex text-slate-500 hover:text-indigo-600 mr-2"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            title={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+                        >
+                            {isSidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
                         </Button>
-                        <div className="flex-1 min-w-0">
-                            <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 break-words leading-tight">{topic.title}</h1>
-                            <p className="text-xs sm:text-sm text-slate-500 truncate">{course.title}</p>
+
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="icon" className="lg:hidden">
+                                    <Menu className="h-5 w-5" />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent side="left" className="p-0 w-80">
+                                <TopicList />
+                            </SheetContent>
+                        </Sheet>
+                        <div>
+                            <h1 className="text-sm font-bold text-slate-900 sm:text-lg line-clamp-1">{topic.title}</h1>
+                            <p className="text-xs text-slate-500 hidden sm:block">Module: {course.topics.find((t: any) => t.id === topic.parent_topic_id)?.title}</p>
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-3 sm:mt-0 sm:absolute sm:right-4 sm:top-3">
-                        <Button
-                            size="sm"
-                            onClick={handleToggleComplete}
-                            disabled={completionLoading}
-                            className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap flex-1 sm:flex-none min-h-[44px]"
-                        >
-                            {completionLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Loading...
-                                </>
-                            ) : (
-                                <span>
-                                    {isCompleted ? 'Completed' : 'Mark as Complete'}
-                                </span>
-                            )}
-                        </Button>
+
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center text-xs font-medium">
+                            {isCompleted ? <span className="flex items-center text-green-600"><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Completed</span> : <span className="text-slate-400">In Progress</span>}
+                        </div>
+
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => router.push(`/learn/courses/${courseId}/topics/${topicId}/exams`)}
-                            disabled={!content}
-                            className="flex-1 sm:flex-none min-h-[44px]"
+                            onClick={(e) => handleToggleBookmark(e, topicId)}
+                            className={cn(
+                                "gap-2 transition-colors",
+                                bookmarkedTopicIds.has(topicId)
+                                    ? "border-orange-300 text-orange-600 hover:bg-orange-50"
+                                    : "border-slate-200 text-slate-500 hover:text-orange-600 hover:border-orange-300"
+                            )}
                         >
-                            <Brain className="mr-2 h-4 w-4" />
-                            <span className="hidden sm:inline">Practice Exams</span>
-                            <span className="sm:hidden">Exams</span>
+                            <Flag className={cn("h-4 w-4", bookmarkedTopicIds.has(topicId) && "fill-orange-500")} />
+                            {bookmarkedTopicIds.has(topicId) ? "Bookmarked" : "Bookmark"}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={handleExportPDF} className="flex-1 sm:flex-none min-h-[44px]">
-                            <Download className="mr-2 h-4 w-4" />
-                            <span className="hidden sm:inline">Export PDF</span>
-                            <span className="sm:hidden">PDF</span>
-                        </Button>
+                    </div>
+                </header>
+
+                {/* Content Scroll Area */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className={cn("mx-auto px-4 sm:px-8 py-12 transition-all duration-300", isSidebarOpen ? "max-w-4xl" : "max-w-6xl")}>
+                        {content ? (
+                            <div className="bg-white p-8 sm:p-12 rounded-2xl shadow-sm border border-slate-200/60 min-h-[500px]">
+                                <MarkdownPreview content={content} />
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-slate-300 text-slate-500">
+                                <Brain className="h-12 w-12 mb-4 text-slate-300" />
+                                <p>Content is being updated by your instructor.</p>
+                            </div>
+                        )}
+
+                        {/* Bottom Navigation */}
+                        <div className="mt-12 flex justify-between items-center pt-8 border-t border-slate-200/60">
+                            <div className="flex items-center gap-3">
+                                <Button variant="outline" onClick={handlePrevious} className="bg-white hover:bg-slate-50">
+                                    <ArrowLeft className="h-4 w-4 mr-2" />
+                                    {prevTopic ? "Previous" : "Back"}
+                                </Button>
+
+                                <Button
+                                    variant="outline"
+                                    onClick={() => router.push(`/learn/courses/${courseId}/topics/${topicId}/exams`)}
+                                    className="bg-white hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors"
+                                >
+                                    <Brain className="h-4 w-4 mr-2" />
+                                    Practice Exam
+                                </Button>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                {/* Only show Mark & Next if not completed yet */}
+                                {!isCompleted && nextTopic && (
+                                    <Button
+                                        onClick={() => handleToggleComplete(true)} // True = Navigate after complete
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                    >
+                                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                                        Mark Complete & Next
+                                    </Button>
+                                )}
+
+                                <Button variant="outline" onClick={handleNext} className="bg-white hover:bg-slate-50">
+                                    {nextTopic ? "Next Topic" : "Finish Course"}
+                                    <ChevronRight className="h-4 w-4 ml-2" />
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </header>
-
-            {/* Content */}
-            <div className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8">
-                {content ? (
-                    <article className="prose prose-slate prose-sm sm:prose-lg max-w-none bg-white rounded-lg shadow-sm p-6 sm:p-8">
-                        <Markdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                                h1: ({ node, ...props }: any) => <h1 className="text-3xl font-bold text-slate-900 mt-8 mb-4 pb-2 border-b-2 border-indigo-200" {...props} />,
-                                h2: ({ node, ...props }: any) => <h2 className="text-2xl font-semibold text-slate-800 mt-8 mb-4" {...props} />,
-                                h3: ({ node, ...props }: any) => <h3 className="text-xl font-semibold text-slate-700 mt-6 mb-3" {...props} />,
-                                p: ({ node, ...props }: any) => <p className="text-base text-slate-700 leading-relaxed mb-4" {...props} />,
-                                ul: ({ node, ...props }: any) => <ul className="list-disc list-inside space-y-2 mb-4 ml-4" {...props} />,
-                                ol: ({ node, ...props }: any) => <ol className="list-decimal list-inside space-y-2 mb-4 ml-4" {...props} />,
-                                li: ({ node, ...props }: any) => <li className="text-slate-700 leading-relaxed" {...props} />,
-                                blockquote: ({ node, ...props }: any) => (
-                                    <blockquote className="border-l-4 border-indigo-400 bg-indigo-50 pl-4 py-2 my-4 italic text-slate-700" {...props} />
-                                ),
-                                a: ({ node, ...props }: any) => <a className="text-indigo-600 hover:text-indigo-800 underline" {...props} />,
-                                strong: ({ node, ...props }: any) => <strong className="font-semibold text-slate-900" {...props} />,
-                                em: ({ node, ...props }: any) => <em className="italic text-slate-700" {...props} />,
-                                code({ node, inline, className, children, ...props }: any) {
-                                    const match = /language-(\w+)/.exec(className || '')
-                                    return !inline && match ? (
-                                        <div className="my-6 rounded-lg overflow-hidden shadow-md border border-slate-200">
-                                            <div className="bg-slate-800 text-slate-100 px-4 py-2 text-sm font-mono flex items-center justify-between">
-                                                <span>{match[1]}</span>
-                                                <span className="text-[10px] opacity-70">Copy</span>
-                                            </div>
-                                            <SyntaxHighlighter
-                                                style={vscDarkPlus}
-                                                language={match[1]}
-                                                PreTag="div"
-                                                customStyle={{
-                                                    margin: 0,
-                                                    borderRadius: 0,
-                                                    padding: '1.5rem',
-                                                    fontSize: '0.9rem',
-                                                    lineHeight: '1.6'
-                                                }}
-                                            >
-                                                {String(children).replace(/\n$/, '')}
-                                            </SyntaxHighlighter>
-                                        </div>
-                                    ) : (
-                                        <code className="bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
-                                            {children}
-                                        </code>
-                                    )
-                                },
-                                table: ({ node, ...props }: any) => (
-                                    <div className="my-6 overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-slate-300 border border-slate-300" {...props} />
-                                    </div>
-                                ),
-                                thead: ({ node, ...props }: any) => (
-                                    <thead className="bg-slate-100" {...props} />
-                                ),
-                                tbody: ({ node, ...props }: any) => (
-                                    <tbody className="divide-y divide-slate-200 bg-white" {...props} />
-                                ),
-                                tr: ({ node, ...props }: any) => (
-                                    <tr className="hover:bg-slate-50" {...props} />
-                                ),
-                                th: ({ node, ...props }: any) => (
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 border-r border-slate-300 last:border-r-0" {...props} />
-                                ),
-                                td: ({ node, ...props }: any) => (
-                                    <td className="px-4 py-3 text-sm text-slate-700 border-r border-slate-200 last:border-r-0" {...props} />
-                                )
-                            }}
-                        >
-                            {content}
-                        </Markdown>
-                    </article>
-                ) : (
-                    <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                        <p className="text-slate-500">No content available for this topic</p>
-                    </div>
-                )}
             </div>
-        </main>
+        </div>
     )
 }

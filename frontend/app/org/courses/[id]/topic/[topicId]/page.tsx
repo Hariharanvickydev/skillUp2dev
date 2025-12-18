@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getCourse, getContent, generateContent, updateTopicContent, approveTopic } from "@/lib/api"
+import { getCourse, getContent, generateContent, updateTopicContent, approveTopic, requestTopicApproval } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Save, Loader2, Sparkles, CheckCircle, Clock, Eye, EyeOff, LayoutTemplate } from "lucide-react"
+import { ArrowLeft, Save, Loader2, Sparkles, CheckCircle, Clock, Eye, EyeOff, LayoutTemplate, GitCompare, GitPullRequest } from "lucide-react"
 import { cn } from "@/lib/utils"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import remarkBreaks from "remark-breaks"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { MarkdownPreview } from "@/components/ui/markdown-preview"
+import { FormattingToolbar } from "@/components/ui/formatting-toolbar"
+import { DiffViewer } from "@/components/ui/diff-viewer"
+import { handleFormattingLogic, calculateNewSelection } from "@/lib/editor-utils"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/AuthContext"
@@ -31,7 +30,9 @@ export default function TopicEditorPage() {
     const [generating, setGenerating] = useState(false)
     const [content, setContent] = useState("")
     const [originalContent, setOriginalContent] = useState("")
+    const [approvedContent, setApprovedContent] = useState<string | null>(null)
     const [isPreviewMode, setIsPreviewMode] = useState(false)
+    const [isDiffMode, setIsDiffMode] = useState(false)
 
     // Load Data
     useEffect(() => {
@@ -55,10 +56,9 @@ export default function TopicEditorPage() {
                     const contentData = await getContent(topicId)
                     setContent(contentData.content || "")
                     setOriginalContent(contentData.content || "")
+                    setApprovedContent(contentData.approved_content || null)
 
                     // Smart View Logic:
-                    // If content exists -> Default to Full Preview
-                    // If empty -> Default to Split View (Edit Mode)
                     if (contentData.content && contentData.content.trim().length > 0) {
                         setIsPreviewMode(true)
                     } else {
@@ -68,7 +68,7 @@ export default function TopicEditorPage() {
                 } catch (e) {
                     // Content might not exist yet
                     console.log("No content found")
-                    setIsPreviewMode(false) // Default to edit mode if no content
+                    setIsPreviewMode(false)
                 } finally {
                     setContentLoading(false)
                 }
@@ -88,9 +88,27 @@ export default function TopicEditorPage() {
             await updateTopicContent(topicId, content)
             setOriginalContent(content)
             toast.success("Changes saved")
-            setIsPreviewMode(true) // meaningful: Auto-switch to preview on save
+            // Optionally update topic status to DRAFT locally if implemented in backend
+            if (topic.status === 'APPROVED' || topic.status === 'REJECTED') {
+                setTopic({ ...topic, status: 'DRAFT' }) // Assuming backend resets to DRAFT on edit
+                toast.info("Status changed to Draft")
+            }
+            setIsPreviewMode(true)
         } catch (e) {
             toast.error("Failed to save")
+        } finally {
+            setGenerating(false)
+        }
+    }
+
+    const handleRequestApproval = async () => {
+        setGenerating(true)
+        try {
+            await requestTopicApproval(topicId)
+            setTopic({ ...topic, status: 'PENDING_APPROVAL' })
+            toast.success("Approval Request Sent!")
+        } catch (e: any) {
+            toast.error(e.response?.data?.detail || "Failed to request approval")
         } finally {
             setGenerating(false)
         }
@@ -100,7 +118,9 @@ export default function TopicEditorPage() {
         try {
             await approveTopic(topicId)
             setTopic({ ...topic, status: 'APPROVED' })
+            setApprovedContent(content) // Update local approved content
             toast.success("Topic Approved!")
+            setIsDiffMode(false) // Exit diff mode
         } catch (e: any) {
             toast.error("Failed to approve")
         }
@@ -115,22 +135,88 @@ export default function TopicEditorPage() {
             if (response.content) {
                 setContent(response.content)
                 setOriginalContent(response.content)
+                pushToHistory(response.content)
             } else {
-                // Fallback if API hasn't updated yet (though it has)
+                // Fallback 
                 const contentData = await getContent(topicId)
                 setContent(contentData.content)
                 setOriginalContent(contentData.content)
             }
 
             toast.success("Content generated!")
-            setIsPreviewMode(true) // Auto-switch to preview
+            setIsPreviewMode(true)
         } catch (e: any) {
-            // Handle 429 specifically if needed
             toast.error(e.response?.data?.detail?.message || "Generation failed")
         } finally {
             setGenerating(false)
         }
     }
+
+    // History State
+    const [history, setHistory] = useState<string[]>([])
+    const [historyStep, setHistoryStep] = useState(0)
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    // History Helpers
+    const pushToHistory = (newContent: string) => {
+        const newHistory = history.slice(0, historyStep + 1)
+        newHistory.push(newContent)
+        setHistory(newHistory)
+        setHistoryStep(newHistory.length - 1)
+
+        if (newHistory.length > 50) {
+            newHistory.shift()
+            setHistoryStep(newHistory.length - 1)
+        }
+    }
+
+    const handleUndo = () => {
+        if (historyStep > 0) {
+            const prevStep = historyStep - 1
+            setHistoryStep(prevStep)
+            setContent(history[prevStep])
+            toast.success("Undo successful")
+        }
+    }
+
+    const handleRedo = () => {
+        if (historyStep < history.length - 1) {
+            const nextStep = historyStep + 1
+            setHistoryStep(nextStep)
+            setContent(history[nextStep])
+            toast.success("Redo successful")
+        }
+    }
+
+    const applyFormatting = (type: string) => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const selectedText = content.substring(start, end)
+        const beforeText = content.substring(0, start)
+        const afterText = content.substring(end)
+
+        const newContent = handleFormattingLogic(type, beforeText, selectedText, afterText)
+
+        setContent(newContent)
+        pushToHistory(newContent)
+
+        const newSelection = calculateNewSelection(type, start, end, newContent.length, content.length, !!selectedText)
+
+        setTimeout(() => {
+            textarea.focus()
+            textarea.setSelectionRange(newSelection.start, newSelection.end)
+        }, 0)
+    }
+
+    // Initialize history on load
+    useEffect(() => {
+        if (content && history.length === 0) {
+            setHistory([content])
+        }
+    }, [content])
 
     if (loading) {
         return (
@@ -142,6 +228,9 @@ export default function TopicEditorPage() {
     }
 
     const hasUnsavedChanges = content !== originalContent
+    const isTeacher = user?.role === 'TEACHER'
+    const canApprove = user?.role !== 'TEACHER' // HOD or ADMIN
+    const isLive = topic?.status === 'APPROVED'
 
     return (
         <div className="flex flex-col h-screen bg-white">
@@ -156,8 +245,10 @@ export default function TopicEditorPage() {
                             <h1 className="text-lg font-bold text-slate-900">{topic?.title}</h1>
                             {topic?.status === 'APPROVED' ? (
                                 <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-0">Live & Approved</Badge>
+                            ) : topic?.status === 'PENDING_APPROVAL' ? (
+                                <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-0">Pending Approval</Badge>
                             ) : (
-                                <Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-0">Draft</Badge>
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-800 hover:bg-slate-100 border-0">Draft</Badge>
                             )}
                         </div>
                         <p className="text-xs text-slate-500">
@@ -171,23 +262,38 @@ export default function TopicEditorPage() {
                         <span className="text-xs text-amber-600 font-medium mr-2">Unsaved Changes</span>
                     )}
 
+                    {/* Diff View Toggle (Only for approvers if there's approved content to compare against) */}
+                    {canApprove && approvedContent && (
+                        <Button
+                            variant={isDiffMode ? "secondary" : "ghost"}
+                            size="sm"
+                            onClick={() => setIsDiffMode(!isDiffMode)}
+                            className={cn("mr-2", isDiffMode && "bg-slate-100")}
+                            title="Compare with Approved Version"
+                        >
+                            <GitCompare className="h-4 w-4 mr-2" />
+                            {isDiffMode ? "Exit Diff" : "Review Changes"}
+                        </Button>
+                    )}
+
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setIsPreviewMode(!isPreviewMode)}
                         className="mr-2"
                         title={isPreviewMode ? "Switch to Split View" : "Switch to Full Preview"}
+                        disabled={isDiffMode}
                     >
                         {isPreviewMode ? <LayoutTemplate className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
                         {isPreviewMode ? "Split View" : "Full Preview"}
                     </Button>
 
-                    <Button variant="outline" onClick={handleGenerate} disabled={generating}>
+                    <Button variant="outline" onClick={handleGenerate} disabled={generating || isDiffMode}>
                         <Sparkles className="h-4 w-4 mr-2" />
                         AI Assistance
                     </Button>
 
-                    <Button onClick={handleSave} disabled={generating || !hasUnsavedChanges} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]">
+                    <Button onClick={handleSave} disabled={generating || !hasUnsavedChanges || isDiffMode} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]">
                         {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                             <>
                                 <Save className="h-4 w-4 mr-2" /> Save
@@ -195,11 +301,22 @@ export default function TopicEditorPage() {
                         )}
                     </Button>
 
-                    {/* Only HODs and Admins can approve */}
-                    {topic?.status !== 'APPROVED' && user?.role !== 'TEACHER' && (
+                    {/* Teacher: Request Approval */}
+                    {isTeacher && topic?.status === 'DRAFT' && !hasUnsavedChanges && (
                         <Button
-                            variant="outline"
-                            className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                            onClick={handleRequestApproval}
+                            disabled={generating}
+                            className="bg-blue-600 hover:bg-blue-700 text-white ml-2"
+                        >
+                            <GitPullRequest className="h-4 w-4 mr-2" />
+                            Request Approval
+                        </Button>
+                    )}
+
+                    {/* Approver: Approve Button */}
+                    {canApprove && topic?.status !== 'APPROVED' && (
+                        <Button
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white ml-2"
                             onClick={handleApprove}
                         >
                             <CheckCircle className="h-4 w-4 mr-2" />
@@ -209,73 +326,53 @@ export default function TopicEditorPage() {
                 </div>
             </header>
 
-            {/* Main Editor Area - Split View */}
+            {/* Main Editor Area */}
             <div className="flex-1 flex overflow-hidden">
-                {/* Editor Pane (Left) */}
-                <div className={cn("flex-1 border-r border-slate-200 flex flex-col bg-slate-50 transition-all duration-300", isPreviewMode && "hidden")}>
-                    <div className="px-4 py-2 border-b bg-white text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Editor (Markdown)
+                {isDiffMode && approvedContent ? (
+                    <div className="w-full flex-1 p-6 bg-slate-50">
+                        <DiffViewer
+                            oldText={approvedContent}
+                            newText={content}
+                            oldTitle="Live Version"
+                            newTitle="Proposed Changes"
+                        />
                     </div>
-                    <Textarea
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        className="flex-1 resize-none border-0 p-6 focus-visible:ring-0 font-mono text-sm leading-relaxed bg-slate-50"
-                        placeholder="# Start writing..."
-                    />
-                </div>
+                ) : (
+                    <>
+                        {/* Editor Pane (Left) */}
+                        <div className={cn("flex-1 border-r border-slate-200 flex flex-col bg-slate-50 transition-all duration-300", isPreviewMode && "hidden")}>
 
-                {/* Preview Pane (Right) */}
-                <div className={cn("flex flex-col bg-white overflow-hidden transition-all duration-300", isPreviewMode ? "w-full" : "flex-1")}>
-                    <div className="px-4 py-2 border-b bg-white text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Live Preview
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-8 lg:p-12">
-                        <article className="prose prose-slate prose-lg max-w-none">
-                            <Markdown
-                                remarkPlugins={[remarkGfm, remarkBreaks]}
-                                components={{
-                                    h1: ({ ...props }) => <h1 className="text-3xl font-bold text-slate-900 mt-0 mb-4 border-b-2 border-indigo-100 pb-2" {...props} />,
-                                    h2: ({ ...props }) => <h2 className="text-2xl font-bold text-slate-800 mt-8 mb-4" {...props} />,
-                                    // Lists - Using list-outside with padding for proper nesting and alignment
-                                    ul: ({ ...props }) => <ul className="list-disc pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
-                                    ol: ({ ...props }) => <ol className="list-decimal pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
-                                    li: ({ ...props }) => <li className="pl-1" {...props} />,
+                            <FormattingToolbar
+                                onAction={applyFormatting}
+                                onUndo={handleUndo}
+                                onRedo={handleRedo}
+                                canUndo={historyStep > 0}
+                                canRedo={historyStep < history.length - 1}
+                            />
 
-                                    blockquote: ({ ...props }) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-3 my-4 italic text-slate-700 rounded-r" {...props} />,
-                                    code({ inline, className, children, ...props }: any) {
-                                        const match = /language-(\w+)/.exec(className || '')
-                                        return !inline && match ? (
-                                            <div className="rounded-lg overflow-hidden my-6 border border-slate-200 shadow-sm">
-                                                <div className="bg-slate-800 text-slate-300 px-4 py-2 text-xs font-mono uppercase tracking-wider border-b border-slate-700">
-                                                    {match[1]}
-                                                </div>
-                                                <SyntaxHighlighter
-                                                    style={vscDarkPlus}
-                                                    language={match[1]}
-                                                    PreTag="div"
-                                                    customStyle={{ margin: 0, borderRadius: 0 }}
-                                                >
-                                                    {String(children).replace(/\n$/, '')}
-                                                </SyntaxHighlighter>
-                                            </div>
-                                        ) : (
-                                            <code className="bg-slate-100 text-indigo-600 px-1.5 py-0.5 rounded font-mono text-sm font-semibold" {...props}>
-                                                {children}
-                                            </code>
-                                        )
-                                    }
-                                }}
-                            >
-                                {content.replace(/\n{3,}/g, (match) => {
-                                    // Preserve multiple empty lines by injecting non-breaking spaces
-                                    // 3 newlines = 1 visual empty line in editor (besides standard break)
-                                    // We replace n > 2 newlines with n-2 lines of &nbsp;
-                                    return '\n\n' + '&nbsp;\n'.repeat(match.length - 2)
-                                }) || "*Preview will appear here...*"}
-                            </Markdown>
-                        </article>
-                    </div>
-                </div>
+                            <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                Editor (Markdown)
+                            </div>
+                            <Textarea
+                                ref={textareaRef}
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                className="flex-1 resize-none border-0 p-6 focus-visible:ring-0 font-mono text-sm leading-relaxed bg-slate-50"
+                                placeholder="# Start writing..."
+                            />
+                        </div>
+
+                        {/* Preview Pane (Right) */}
+                        <div className={cn("flex flex-col bg-white overflow-hidden transition-all duration-300", isPreviewMode ? "w-full" : "flex-1")}>
+                            <div className="px-4 py-2 border-b bg-white text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Live Preview
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+                                <MarkdownPreview content={content} />
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     )

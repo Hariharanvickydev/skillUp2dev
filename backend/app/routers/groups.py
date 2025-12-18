@@ -56,16 +56,21 @@ def get_group_tree(
     ).all()
     
     # 2. Build Tree
-    group_map = {g.id: g for g in groups}
-    tree = []
-    
-    # Convert to schema-like dicts to attach children
-    # Or rely on Pydantic's recursive parsing if we set up 'children' relationship in ORM correctly.
-    # Our model has 'children' relationship.
-    # But filtering at Python level is often easier for simple trees.
-    
-    # Let's return root nodes (parent_id is None) and let ORM lazy-load or eager-load children.
-    # Efficient way:
+    # If HOD, return their specific group as the root
+    if current_user.role == models.UserRole.DEPT_HEAD and current_user.org_group_id:
+        # Use simple lazy loading by joining is complicated for recursive. 
+        # But we need children to be populated for Pydantic to serialize them.
+        # Let's rely on Pydantic's recursive parsing which should trigger lazy loads 
+        # IF the session is still active.
+        # But to be safe, fetch roots and let Pydantic handle it.
+        # IF that fails, we can add options(selectinload(models.OrgGroup.children))
+        from sqlalchemy.orm import selectinload
+        root_group = db.query(models.OrgGroup).options(
+            selectinload(models.OrgGroup.children)
+        ).filter(models.OrgGroup.id == current_user.org_group_id).first()
+        return [root_group] if root_group else []
+
+    # Otherwise return organizational roots
     roots = db.query(models.OrgGroup).filter(
         models.OrgGroup.organization_id == target_org_id,
         models.OrgGroup.parent_id == None

@@ -118,15 +118,15 @@ def get_org_dashboard_stats(
     # Published Courses (Reuse query base)
     published_courses = course_query.filter(models.Course.is_published == True).count()
     
-    # Pending Approvals (For HOD)
+    # Pending Approvals (For HOD & Org Admin)
     pending_approvals = 0
-    if is_hod:
-        course_ids = [c.id for c in course_query.all()]
-        if course_ids:
-            pending_approvals = db.query(models.Topic).filter(
-                models.Topic.course_id.in_(course_ids),
-                models.Topic.status == "PENDING_APPROVAL"
-            ).count()
+    # Using the scoped course_query which is already correct for both HOD and Org Admin
+    course_ids = [c.id for c in course_query.all()]
+    if course_ids:
+        pending_approvals = db.query(models.Topic).filter(
+            models.Topic.course_id.in_(course_ids),
+            models.Topic.status == "PENDING_APPROVAL"
+        ).count()
 
     # Exams (Module exams)
     exam_query = db.query(models.Exam).join(
@@ -185,6 +185,119 @@ def get_org_dashboard_stats(
             "limit": ai_credits_limit
         }
     }
+
+@router.get("/dashboard/approvals", response_model=List[Dict[str, Any]])
+def get_pending_approvals(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get detailed list of pending approvals for HOD.
+    """
+    if current_user.role not in [models.UserRole.ORG_ADMIN, models.UserRole.DEPT_HEAD, models.UserRole.SUPER_ADMIN]:
+         raise HTTPException(status_code=403, detail="Not authorized")
+
+    if not current_user.organization_id:
+        raise HTTPException(status_code=400, detail="No organization assigned")
+    
+    org_id = current_user.organization_id
+    is_hod = current_user.role == models.UserRole.DEPT_HEAD
+    group_id = current_user.org_group_id if is_hod else None
+    
+    # Helper to get all descendant group IDs
+    def _get_all_descendant_ids(session: Session, root_group_id: UUID) -> List[UUID]:
+        all_ids = {root_group_id}
+        queue = [root_group_id]
+        while queue:
+            current = queue.pop(0)
+            children = session.query(models.OrgGroup).filter(models.OrgGroup.parent_id == current).all()
+            for child in children:
+                if child.id not in all_ids:
+                    all_ids.add(child.id)
+                    queue.append(child.id)
+        return list(all_ids)
+
+    relevant_group_ids = []
+    if is_hod and group_id:
+        relevant_group_ids = _get_all_descendant_ids(db, group_id)
+
+    # 1. Get Course IDs relevant to HOD
+    course_query = db.query(models.Course).filter(models.Course.organization_id == org_id)
+    
+    if is_hod and relevant_group_ids:
+        # Asssigned Teacher
+        teacher_course_ids = db.query(models.Course.id).join(
+            models.User, models.Course.assigned_teacher_id == models.User.id
+        ).filter(
+            models.User.org_group_id.in_(relevant_group_ids),
+            models.Course.organization_id == org_id
+        ).all()
+        teacher_course_ids = [c.id for c in teacher_course_ids]
+        
+        # Assignees
+        assignee_course_ids = db.query(models.Course.id).join(
+            models.Course.assignees
+        ).filter(
+            models.User.org_group_id.in_(relevant_group_ids),
+            models.Course.organization_id == org_id
+        ).all()
+        assignee_course_ids = [c.id for c in assignee_course_ids]
+        
+        all_course_ids = list(set(teacher_course_ids + assignee_course_ids))
+        if all_course_ids:
+            course_query = course_query.filter(models.Course.id.in_(all_course_ids))
+        else:
+            return [] # No courses, no approvals
+
+    course_ids = [c.id for c in course_query.all()]
+    if not course_ids:
+        return []
+
+    # 2. Get Topics with Eager Loading
+    from sqlalchemy.orm import joinedload
+    topics = db.query(models.Topic).options(
+        joinedload(models.Topic.course).joinedload(models.Course.assigned_teacher).joinedload(models.User.group),
+        joinedload(models.Topic.course).joinedload(models.Course.assignees).joinedload(models.User.group),
+        joinedload(models.Topic.course).joinedload(models.Course.creator).joinedload(models.User.group)
+    ).filter(
+        models.Topic.course_id.in_(course_ids),
+        models.Topic.status == "PENDING_APPROVAL"
+    ).all()
+
+    result = []
+    for topic in topics:
+        # Get Teacher Name & Department/Group
+        teacher_name = "Unknown"
+        group_name = "Department"
+        group_id = None
+        
+        teacher = topic.course.assigned_teacher
+        # Fallback to assignees if no single assigned teacher
+        if not teacher and topic.course.assignees:
+            teacher = topic.course.assignees[0] # Take the first assignee as representative
+        
+        # Fallback to creator
+        if not teacher:
+            teacher = topic.course.creator
+
+        if teacher:
+            teacher_name = teacher.full_name
+            if teacher.group:
+                group_name = teacher.group.name
+                group_id = str(teacher.group.id)
+            
+        result.append({
+            "id": str(topic.id),
+            "title": topic.title,
+            "course_id": str(topic.course_id),
+            "course_title": topic.course.title,
+            "teacher_name": teacher_name,
+            "department_name": group_name,
+            "department_id": group_id,
+            "created_at": topic.created_at
+        })
+        
+    return result
 
 @router.get("/teacher/stats", response_model=Dict[str, Any])
 def get_teacher_stats(

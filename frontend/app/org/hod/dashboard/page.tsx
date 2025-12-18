@@ -15,6 +15,7 @@ export default function HODDashboardPage() {
     const { token, user } = useAuth();
     const router = useRouter();
     const [stats, setStats] = useState<any>(null);
+    const [approvals, setApprovals] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -26,6 +27,12 @@ export default function HODDashboardPage() {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setStats(response.data);
+
+                // Fetch approvals list
+                const approvalsResponse = await axios.get(`${API_URL}/org/dashboard/approvals`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setApprovals(approvalsResponse.data);
             } catch (error) {
                 console.error("Failed to fetch dashboard stats:", error);
                 // toast.error("Failed to load dashboard statistics");
@@ -130,6 +137,7 @@ export default function HODDashboardPage() {
                     <CheckCircle className="h-5 w-5 text-orange-600" /> Approval Queue
                 </h2>
 
+
                 {stats?.pending_approvals > 0 ? (
                     <div className="bg-orange-50 border border-orange-100 rounded-3xl p-8 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
@@ -138,14 +146,14 @@ export default function HODDashboardPage() {
                             </div>
                             <div>
                                 <h3 className="text-lg font-bold text-orange-900">You have {stats.pending_approvals} items pending review</h3>
-                                <p className="text-orange-700">Review and approve content to ensure quality.</p>
+                                <p className="text-orange-700">Review and approve content in the dedicated approval queue.</p>
                             </div>
                         </div>
                         <Button
-                            onClick={() => router.push('/org/hod/courses?tab=drafts')}
+                            onClick={() => router.push('/org/approvals')}
                             className="bg-orange-600 hover:bg-orange-700 text-white border-0"
                         >
-                            Go to Review Queue
+                            Go to Approval Queue
                         </Button>
                     </div>
                 ) : (

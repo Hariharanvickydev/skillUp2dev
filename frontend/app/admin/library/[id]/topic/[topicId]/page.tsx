@@ -10,11 +10,9 @@ import {
     Bold, Italic, List, ListOrdered, Heading1, Heading2, Code as CodeIcon, Link2, TableProperties, Undo2, Redo2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import remarkBreaks from "remark-breaks"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { MarkdownPreview } from "@/components/ui/markdown-preview"
+import { FormattingToolbar } from "@/components/ui/formatting-toolbar"
+import { handleFormattingLogic, calculateNewSelection } from "@/lib/editor-utils"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 
@@ -182,67 +180,16 @@ export default function AdminTopicEditorPage() {
         setContent(newContent)
         pushToHistory(newContent)
 
-        // Refocus and set cursor
+        // Calculate cursor position using shared util
+        const newSelection = calculateNewSelection(type, start, end, newContent.length, content.length, !!selectedText)
+
         setTimeout(() => {
             textarea.focus()
-            if (!selectedText) {
-                const newPos = start + (type === 'bold' ? 2 : type === 'italic' ? 1 : 0)
-                // For headings and lists, we just put it at the end of the tag
-            }
+            textarea.setSelectionRange(newSelection.start, newSelection.end)
         }, 0)
     }
 
-    const handleFormattingLogic = (type: string, beforeText: string, selectedText: string, afterText: string): string => {
-        switch (type) {
-            case 'bold':
-                return `${beforeText}**${selectedText || 'text'}**${afterText}`
-            case 'italic':
-                return `${beforeText}*${selectedText || 'text'}*${afterText}`
-            case 'h1':
-                return `${beforeText}\n# ${selectedText || 'Heading 1'}\n${afterText}`
-            case 'h2':
-                return `${beforeText}\n## ${selectedText || 'Heading 2'}\n${afterText}`
-            case 'list':
-                return `${beforeText}\n- ${selectedText || 'item'}\n${afterText}`
-            case 'ordered-list':
-                return `${beforeText}\n1. ${selectedText || 'item'}\n${afterText}`
-            case 'code':
-                return `${beforeText}\n\`\`\`\n${selectedText || 'code'}\n\`\`\`\n${afterText}`
-            case 'link':
-                return `${beforeText}[${selectedText || 'link text'}](https://example.com)${afterText}`
-            case 'table':
-                if (selectedText) {
-                    let lines = selectedText.trim().split('\n')
-                    // Filter out existing markdown separator lines (| --- | or --- ---)
-                    const dataLines = lines.filter(line => {
-                        const trimmed = line.trim()
-                        // If it's just dashes, colons, and pipes/spaces, it's a separator
-                        return !(/^[ \-|:]+$/.test(trimmed) && trimmed.includes('-'))
-                    })
-
-                    if (dataLines.length > 0) {
-                        const rows = dataLines.map(line => {
-                            const cells = line.split(/[,\t|]/).map(c => c.trim()).filter(c => c.length > 0)
-                            return `| ${cells.join(' | ')} |`
-                        })
-
-                        // Use first line as header
-                        const header = rows[0]
-                        const colCount = header.split('|').length - 2
-                        const underline = `| ${Array(colCount).fill('---').join(' | ')} |`
-
-                        if (rows.length === 1) {
-                            return `${beforeText}\n${header}\n${underline}\n|  |  |\n${afterText}`
-                        }
-                        return `${beforeText}\n${header}\n${underline}\n${rows.slice(1).join('\n')}\n${afterText}`
-                    }
-                }
-                // Default template
-                return `${beforeText}\n| Header 1 | Header 2 |\n| :--- | :--- |\n| Cell 1 | Cell 2 |\n| Cell 3 | Cell 4 |\n${afterText}`
-            default:
-                return beforeText + selectedText + afterText
-        }
-    }
+    // Old handleFormattingLogic removed, imported from utils
 
     if (loading) {
         return (
@@ -325,60 +272,13 @@ export default function AdminTopicEditorPage() {
                 {/* Editor Pane (Left) */}
                 <div className={cn("flex-1 border-r border-slate-200 flex flex-col bg-slate-50 transition-all duration-300", isPreviewMode && "hidden")}>
                     {/* Manual Formatting Toolbar */}
-                    <div className="px-3 py-1.5 border-b bg-white flex items-center gap-1 shrink-0 overflow-x-auto">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 mr-1"
-                            onClick={handleUndo}
-                            disabled={historyStep <= 0}
-                            title="Undo (Ctrl+Z)"
-                        >
-                            <Undo2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 mr-2"
-                            onClick={handleRedo}
-                            disabled={historyStep >= history.length - 1}
-                            title="Redo (Ctrl+Y)"
-                        >
-                            <Redo2 className="h-4 w-4" />
-                        </Button>
-                        <div className="w-[1px] h-4 bg-slate-200 mx-1 mr-2" />
-
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('bold')} title="Bold">
-                            <Bold className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('italic')} title="Italic">
-                            <Italic className="h-4 w-4" />
-                        </Button>
-                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('h1')} title="Heading 1">
-                            <Heading1 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('h2')} title="Heading 2">
-                            <Heading2 className="h-4 w-4" />
-                        </Button>
-                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('list')} title="Bullet List">
-                            <List className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('ordered-list')} title="Numbered List">
-                            <ListOrdered className="h-4 w-4" />
-                        </Button>
-                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('code')} title="Code Block">
-                            <CodeIcon className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('link')} title="Insert Link">
-                            <Link2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600" onClick={() => applyFormatting('table')} title="Insert Table">
-                            <TableProperties className="h-4 w-4" />
-                        </Button>
-                    </div>
+                    <FormattingToolbar
+                        onAction={applyFormatting}
+                        onUndo={handleUndo}
+                        onRedo={handleRedo}
+                        canUndo={historyStep > 0}
+                        canRedo={historyStep < history.length - 1}
+                    />
 
                     <div className="px-4 py-2 border-b bg-slate-50 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                         Editor (Markdown)
@@ -398,62 +298,7 @@ export default function AdminTopicEditorPage() {
                         Live Preview
                     </div>
                     <div className="flex-1 overflow-y-auto p-8 lg:p-12">
-                        <article className="prose prose-slate prose-lg max-w-none">
-                            <Markdown
-                                remarkPlugins={[remarkGfm, remarkBreaks]}
-                                components={{
-                                    h1: ({ ...props }) => <h1 className="text-3xl font-bold text-slate-900 mt-0 mb-4 border-b-2 border-indigo-100 pb-2" {...props} />,
-                                    h2: ({ ...props }) => <h2 className="text-2xl font-bold text-slate-800 mt-8 mb-4" {...props} />,
-                                    // Lists - Using list-outside with padding for proper nesting and alignment
-                                    ul: ({ ...props }) => <ul className="list-disc pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
-                                    ol: ({ ...props }) => <ol className="list-decimal pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
-                                    li: ({ ...props }) => <li className="pl-1" {...props} />,
-
-                                    blockquote: ({ ...props }) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-3 my-4 italic text-slate-700 rounded-r" {...props} />,
-
-                                    // Premium Tables
-                                    table: ({ ...props }) => (
-                                        <div className="my-6 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-                                            <table className="min-w-full divide-y divide-slate-200 border-collapse" {...props} />
-                                        </div>
-                                    ),
-                                    thead: ({ ...props }) => <thead className="bg-slate-50/80" {...props} />,
-                                    th: ({ ...props }) => <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-widest border-b border-slate-200" {...props} />,
-                                    td: ({ ...props }) => <td className="px-6 py-4 text-sm text-slate-600 border-b border-slate-100 last:border-b-0" {...props} />,
-                                    tr: ({ ...props }) => <tr className="hover:bg-slate-50/50 transition-colors even:bg-slate-50/30" {...props} />,
-
-                                    code({ inline, className, children, ...props }: any) {
-                                        const match = /language-(\w+)/.exec(className || '')
-                                        return !inline && match ? (
-                                            <div className="rounded-lg overflow-hidden my-6 border border-slate-200 shadow-sm">
-                                                <div className="bg-slate-800 text-slate-300 px-4 py-2 text-xs font-mono uppercase tracking-wider border-b border-slate-700">
-                                                    {match[1]}
-                                                </div>
-                                                <SyntaxHighlighter
-                                                    style={vscDarkPlus}
-                                                    language={match[1]}
-                                                    PreTag="div"
-                                                    customStyle={{ margin: 0, borderRadius: 0 }}
-                                                >
-                                                    {String(children).replace(/\n$/, '')}
-                                                </SyntaxHighlighter>
-                                            </div>
-                                        ) : (
-                                            <code className="bg-slate-100 text-indigo-600 px-1.5 py-0.5 rounded font-mono text-sm font-semibold" {...props}>
-                                                {children}
-                                            </code>
-                                        )
-                                    }
-                                }}
-                            >
-                                {content.replace(/\n{3,}/g, (match) => {
-                                    // Preserve multiple empty lines by injecting non-breaking spaces
-                                    // 3 newlines = 1 visual empty line in editor (besides standard break)
-                                    // We replace n > 2 newlines with n-2 lines of &nbsp;
-                                    return '\n\n' + '&nbsp;\n'.repeat(match.length - 2)
-                                }) || "*Preview will appear here...*"}
-                            </Markdown>
-                        </article>
+                        <MarkdownPreview content={content} />
                     </div>
                 </div>
             </div>

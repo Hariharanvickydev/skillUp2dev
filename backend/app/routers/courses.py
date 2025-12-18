@@ -30,15 +30,18 @@ def read_courses(
     
     # If Org Admin, default to their org if not specified? 
     # Actually, for Org Admin view we might want to see THEIR courses.
+    # If Org Admin, default to their org
     if current_user and current_user.role == models.UserRole.ORG_ADMIN:
-        # If they specifically ask for another org, block it? 
-        # For now, let's just allow filtering.
         if not organization_id:
              organization_id = current_user.organization_id
 
     # Filter for Teachers/HODs: Only show assigned courses
     if current_user and current_user.role in [models.UserRole.TEACHER, models.UserRole.DEPT_HEAD]:
         courses = crud.get_courses_for_user(db, current_user, skip=skip, limit=limit)
+    elif current_user and current_user.role == models.UserRole.STUDENT:
+        # Students see all PUBLISHED courses in their Organization
+        organization_id = current_user.organization_id
+        courses = crud.get_courses(db, skip=skip, limit=limit, published_only=True, organization_id=organization_id)
     else:
         courses = crud.get_courses(db, skip=skip, limit=limit, published_only=published_only, organization_id=organization_id)
         

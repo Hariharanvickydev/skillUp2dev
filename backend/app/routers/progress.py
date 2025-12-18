@@ -80,6 +80,57 @@ def unmark_topic_complete(
     
     return {"message": "No progress record found"}
 
+@router.post("/topics/{topic_id}/bookmark")
+def bookmark_topic(
+    topic_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Bookmark a topic for the current user"""
+    topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    
+    progress = db.query(models.UserProgress).filter(
+        models.UserProgress.user_id == current_user.id,
+        models.UserProgress.topic_id == topic_id
+    ).first()
+    
+    if progress:
+        progress.is_bookmarked = True
+        progress.last_accessed = datetime.utcnow()
+    else:
+        progress = models.UserProgress(
+            user_id=current_user.id,
+            course_id=topic.course_id,
+            topic_id=topic_id,
+            completed=False,
+            is_bookmarked=True
+        )
+        db.add(progress)
+    
+    db.commit()
+    db.refresh(progress)
+    return {"message": "Bookmarked", "is_bookmarked": True}
+
+@router.delete("/topics/{topic_id}/bookmark")
+def remove_bookmark(
+    topic_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Remove bookmark from a topic"""
+    progress = db.query(models.UserProgress).filter(
+        models.UserProgress.user_id == current_user.id,
+        models.UserProgress.topic_id == topic_id
+    ).first()
+    
+    if progress:
+        progress.is_bookmarked = False
+        db.commit()
+    
+    return {"message": "Bookmark removed", "is_bookmarked": False}
+
 @router.get("/courses/{course_id}")
 def get_course_progress(
     course_id: UUID,
@@ -97,6 +148,7 @@ def get_course_progress(
         "id": p.id,
         "topic_id": p.topic_id,
         "completed": p.completed,
+        "is_bookmarked": p.is_bookmarked,
         "last_accessed": p.last_accessed
     } for p in progress_records]
 

@@ -114,6 +114,7 @@ class Organization(OrganizationBase):
 # --- CONTENT SCHEMAS ---
 class TopicContentBase(BaseModel):
     content: str
+    approved_content: Optional[str] = None
     is_approved: bool = False
 
 class TopicContentCreate(TopicContentBase):

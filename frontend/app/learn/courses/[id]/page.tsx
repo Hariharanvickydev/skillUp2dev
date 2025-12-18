@@ -2,18 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getCourse, addTopic, updateTopic, deleteTopic, generateTopics, approveTopic, getContent, generateContent } from "@/lib/api"
+import { getCourse } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, Play, CheckCircle, CheckCircle2, Loader2, FileText, Download, Share2, Mail, Copy } from "lucide-react"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { toast } from "sonner"
+import { ArrowLeft, CheckCircle2, Play, FileText, Brain, Award } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export default function CourseDetailPage() {
     const params = useParams()
@@ -23,27 +16,7 @@ export default function CourseDetailPage() {
     const [course, setCourse] = useState<any>(null)
     const [topics, setTopics] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
-    const [generating, setGenerating] = useState(false)
     const [completedTopicIds, setCompletedTopicIds] = useState<Set<string>>(new Set())
-
-    // Content Dialog State
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [selectedTopic, setSelectedTopic] = useState<any>(null)
-    const [contentLoading, setContentLoading] = useState(false)
-    const [activeContent, setActiveContent] = useState<string>("")
-
-    // Topic Management State
-    const [editingTopic, setEditingTopic] = useState<any>(null)
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-    const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false)
-    const [isDeleteCourseDialogOpen, setIsDeleteCourseDialogOpen] = useState(false)
-    const [topicToDelete, setTopicToDelete] = useState<any>(null)
-    const [newTopicData, setNewTopicData] = useState({ title: "", description: "", order: topics.length + 1 })
-    const [parentTopicForSubtopic, setParentTopicForSubtopic] = useState<any>(null)
-    const [isRegenerateFeedbackOpen, setIsRegenerateFeedbackOpen] = useState(false)
-    const [regenerateFeedback, setRegenerateFeedback] = useState("")
 
     const fetchCourse = async () => {
         try {
@@ -73,514 +46,205 @@ export default function CourseDetailPage() {
         fetchCourse()
     }, [id])
 
-    const handleViewContent = async (topic: any) => {
-        setSelectedTopic(topic)
-        setIsDialogOpen(true)
-        setContentLoading(true)
-        try {
-            const response = await fetch(`http://localhost:8000/topics/${topic.id}/content`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            })
-            const data = await response.json()
-            setActiveContent(data.content)
-        } catch (error) {
-            console.error('Error fetching content:', error)
-            setActiveContent("")
-        } finally {
-            setContentLoading(false)
-        }
+    const calculateProgress = () => {
+        if (!topics.length) return 0
+        // Count ALL topics (including unpublished/coming soon)
+        const allTopics = topics.filter((t: any) => !t.parent_topic_id)
+            .flatMap((parent: any) => topics.filter((t: any) => t.parent_topic_id === parent.id))
+
+        if (!allTopics.length) return 0
+
+        const completedCount = allTopics.filter((t: any) => completedTopicIds.has(t.id)).length
+        return Math.round((completedCount / allTopics.length) * 100)
     }
 
-    const handleExportPDF = async () => {
-        if (!selectedTopic || !activeContent) return
+    const progress = calculateProgress()
 
-        try {
-            // Use browser's native print dialog which handles all CSS properly
-            const element = document.querySelector('.prose')
-            if (!element) {
-                toast.error('Content not found')
-                return
-            }
+    if (loading) return (
+        <div className="flex items-center justify-center p-12">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        </div>
+    )
 
-            // Get all stylesheets
-            const styles = Array.from(document.styleSheets)
-                .map(styleSheet => {
-                    try {
-                        return Array.from(styleSheet.cssRules)
-                            .map(rule => rule.cssText)
-                            .join('\n')
-                    } catch (e) {
-                        return ''
-                    }
-                })
-                .join('\n')
+    if (!course) return <div className="p-12 text-center text-slate-500">Course not found</div>
 
-            const htmlContent = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>${selectedTopic.title} - SkillUp2Dev</title>
-                    <style>
-                        ${styles}
-                        body {
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                            line-height: 1.6;
-                            color: #1e293b;
-                            max-width: 800px;
-                            margin: 0 auto;
-                            padding: 40px 20px;
-                        }
-                        .header {
-                            margin-bottom: 40px;
-                            padding-bottom: 20px;
-                            border-bottom: 2px solid #e2e8f0;
-                        }
-                        .header h1 {
-                            margin: 0 0 10px 0;
-                            color: #0f172a;
-                            font-size: 32px;
-                        }
-                        .meta {
-                            color: #64748b;
-                            font-size: 14px;
-                            margin: 5px 0;
-                        }
-                        .footer {
-                            margin-top: 60px;
-                            padding-top: 20px;
-                            border-top: 1px solid #e2e8f0;
-                            text-align: center;
-                            color: #64748b;
-                            font-size: 12px;
-                        }
-                        @media print {
-                            body { 
-                                margin: 20mm;
-                                padding: 0;
-                            }
-                            @page { 
-                                size: A4;
-                                margin: 0;
-                            }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>${selectedTopic.title}</h1>
-                        <div class="meta"><strong>Course:</strong> ${course.title}</div>
-                        <div class="meta"><strong>Author:</strong> SkillUp2Dev</div>
-                        <div class="meta"><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
-                    </div>
-                    <div class="content">
-                        ${element.innerHTML}
-                    </div>
-                    <div class="footer">
-                        <p>© ${new Date().getFullYear()} SkillUp2Dev - All Rights Reserved</p>
-                    </div>
-                </body>
-                </html>
-            `
-
-            // Create blob and open in new tab
-            const blob = new Blob([htmlContent], { type: 'text/html' })
-            const url = URL.createObjectURL(blob)
-            const printWindow = window.open(url, '_blank')
-
-            if (!printWindow) {
-                toast.error('Please allow popups to export PDF')
-                URL.revokeObjectURL(url)
-                return
-            }
-
-            // Wait for content to load, then trigger print
-            printWindow.onload = () => {
-                setTimeout(() => {
-                    printWindow.print()
-                }, 500)
-            }
-
-            console.log('Print dialog opened')
-        } catch (error) {
-            console.error('Error opening print dialog:', error)
-            toast.error(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
-        }
-    }
-
-    const handleShareEmail = () => {
-        const subject = encodeURIComponent(`Check out: ${selectedTopic?.title}`)
-        const body = encodeURIComponent(`I found this interesting topic: ${selectedTopic?.title}\n\n${window.location.href}`)
-        window.location.href = `mailto:?subject=${subject}&body=${body}`
-    }
-
-    const handleShareWhatsApp = () => {
-        const text = encodeURIComponent(`Check out this topic: ${selectedTopic?.title}\n${window.location.href}`)
-        window.open(`https://wa.me/?text=${text}`, '_blank')
-    }
-
-    const handleCopyLink = async () => {
-        try {
-            await navigator.clipboard.writeText(window.location.href)
-            toast.success('Link copied to clipboard!')
-        } catch (error) {
-            console.error('Error copying link:', error)
-        }
-    }
-
-    const handleGenerateContent = async (feedback?: string) => {
-        if (!selectedTopic) return
-        setGenerating(true)
-        setContentLoading(true)
-        try {
-            await fetch(`http://localhost:8000/topics/${selectedTopic.id}/generate-content`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ feedback: feedback || null })
-            })
-            const response = await fetch(`http://localhost:8000/topics/${selectedTopic.id}/content`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            })
-            const data = await response.json()
-            setActiveContent(data.content)
-
-            // Close feedback dialog and clear feedback
-            setIsRegenerateFeedbackOpen(false)
-            setRegenerateFeedback("")
-        } catch (error) {
-            console.error('Error generating content:', error)
-        } finally {
-            setGenerating(false)
-            setContentLoading(false)
-        }
-    }
-
-    const handleApprove = async () => {
-        if (!selectedTopic) return
-        try {
-            await approveTopic(selectedTopic.id)
-            setIsDialogOpen(false)
-            fetchCourse()
-        } catch (e) {
-            console.error(e)
-            toast.error('Failed to approve')
-        }
-    }
-
-    const handleEditTopic = async () => {
-        if (!editingTopic) return
-        try {
-            await updateTopic(editingTopic.id, {
-                title: editingTopic.title,
-                description: editingTopic.description,
-                order: editingTopic.order
-            })
-            setIsEditDialogOpen(false)
-            fetchCourse()
-        } catch (e) {
-            console.error(e)
-            toast.error('Failed to update topic')
-        }
-    }
-
-    const handleDeleteTopic = async () => {
-        if (!topicToDelete) return
-        try {
-            await deleteTopic(topicToDelete.id)
-            setIsDeleteDialogOpen(false)
-            setTopicToDelete(null)
-            fetchCourse()
-        } catch (e) {
-            console.error(e)
-            toast.error('Failed to delete topic')
-        }
-    }
-
-    const handleAddTopic = async () => {
-        if (!newTopicData.title) return
-        try {
-            const topicData = parentTopicForSubtopic
-                ? {
-                    ...newTopicData,
-                    parent_topic_id: parentTopicForSubtopic.id,
-                    order: topics.filter((t: any) => t.parent_topic_id === parentTopicForSubtopic.id).length + 1
-                }
-                : {
-                    ...newTopicData,
-                    order: topics.filter((t: any) => !t.parent_topic_id).length + 1
-                }
-
-            await addTopic(id, topicData)
-            setIsAddDialogOpen(false)
-            setParentTopicForSubtopic(null)
-            setNewTopicData({ title: "", description: "", order: topics.length + 1 })
-            fetchCourse()
-        } catch (e) {
-            console.error(e)
-            toast.error('Failed to add topic')
-        }
-    }
-
-    const handleRegenerateTopics = async () => {
-        setGenerating(true)
-        try {
-            await generateTopics(id)
-            setIsRegenerateDialogOpen(false)
-            fetchCourse()
-        } catch (e) {
-            console.error(e)
-            toast.error('Failed to generate topics')
-        } finally {
-            setGenerating(false)
-        }
-    }
-
-    const handlePublishCourse = async () => {
-        try {
-            const response = await fetch(`http://localhost:8000/courses/${id}/publish`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            })
-
-            if (!response.ok) {
-                const error = await response.json()
-                toast.error(error.detail || 'Failed to publish course')
-                return
-            }
-
-            toast.success('Course published successfully!')
-            fetchCourse()
-        } catch (e) {
-            console.error(e)
-            toast.error('Failed to publish course')
-        }
-    }
-
-    const handleDeleteCourse = async () => {
-        try {
-            await fetch(`http://localhost:8000/courses/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            })
-            router.push('/')
-        } catch (e) {
-            console.error(e)
-            toast.error('Failed to delete course')
-        }
-    }
-
-    if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading...</div>
-    if (!course) return <div className="p-4 sm:p-8 md:p-12">Course not found</div>
+    const gradient = course.category?.includes("Computer") ? "from-blue-600 to-indigo-600" :
+        course.category?.includes("Data") ? "from-emerald-500 to-teal-600" :
+            "from-indigo-500 to-purple-600"
 
     return (
-        <main className="flex min-h-screen flex-col p-4 sm:p-6 md:p-8 lg:p-12 bg-slate-50">
-            <div className="max-w-6xl mx-auto w-full">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-                    <div className="flex items-start gap-3 sm:gap-4 w-full sm:w-auto">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/learn')} className="flex-shrink-0 mt-1">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 break-words leading-tight">{course.title}</h1>
+        <div className="p-6 lg:p-10 space-y-8 pb-20 max-w-7xl mx-auto">
+            {/* Hero Section */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 lg:p-12 text-white shadow-xl shadow-indigo-900/20">
+                <div className="absolute top-0 right-0 -mt-20 -mr-20 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-80 w-80 rounded-full bg-purple-500/20 blur-3xl"></div>
+
+                <div className="relative z-10">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push('/learn')}
+                        className="text-white/80 hover:text-white hover:bg-white/10 mb-6 -ml-2"
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Courses
+                    </Button>
+
+                    <div className="flex flex-col md:flex-row gap-8 items-end justify-between">
+                        <div className="flex-1 space-y-6">
+                            <div>
+                                <div className="inline-flex items-center text-xs font-bold px-2 py-1 rounded bg-white/20 backdrop-blur-md border border-white/20 mb-3">
+                                    {course.code || "COURSE"}
+                                </div>
+                                <h1 className="text-3xl md:text-5xl font-bold tracking-tight leading-tight">{course.title}</h1>
+                                <p className="text-lg text-white/90 max-w-2xl leading-relaxed mt-4">
+                                    {course.description || "Master this subject with our comprehensive curriculum."}
+                                </p>
+                            </div>
+
+                            {/* Progress Bar & Continue Button */}
+                            <div className="flex flex-col sm:flex-row gap-6 items-end sm:items-center w-full max-w-4xl">
+                                <div className="flex-1 w-full bg-black/20 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                    <div className="flex justify-between items-center mb-2 text-sm font-medium">
+                                        <span>Course Progress</span>
+                                        <span>{progress}%</span>
+                                    </div>
+                                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-white transition-all duration-500 ease-out"
+                                            style={{ width: `${progress}%` }}
+                                        ></div>
+                                    </div>
+                                    <div className="mt-2 text-xs text-white/70">
+                                        {(() => {
+                                            const publishedTopics = topics.filter((t: any) => !t.parent_topic_id && t.is_published)
+                                                .flatMap((parent: any) => topics.filter((t: any) => t.parent_topic_id === parent.id && t.status === 'APPROVED'))
+                                            const completedCount = publishedTopics.filter((t: any) => completedTopicIds.has(t.id)).length
+                                            return `Completed ${completedCount}/${publishedTopics.length} published topics`
+                                        })()}
+                                    </div>
+                                </div>
+
+                                <Button
+                                    size="lg"
+                                    className="bg-white text-indigo-900 hover:bg-indigo-50 font-bold shadow-lg shadow-black/10 whitespace-nowrap min-w-[200px]"
+                                    onClick={() => {
+                                        // Resume - find first incomplete
+                                        const firstIncomplete = topics.flatMap((p: any) => topics.filter((t: any) => t.parent_topic_id === p.id && t.status === 'APPROVED'))
+                                            .find((t: any) => !completedTopicIds.has(t.id))
+                                        if (firstIncomplete) router.push(`${id}/topics/${firstIncomplete.id}`)
+                                    }}
+                                >
+                                    <Play className="h-5 w-5 mr-2 fill-current" /> Continue Learning
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Topics List */}
-                {topics.length > 0 && (
-                    <div className="grid gap-4">
-                        <h2 className="text-xl font-semibold">Course Outline</h2>
-                        {topics
-                            .filter((topic: any) => !topic.parent_topic_id && topic.is_published) // Only show published modules
+            {/* Content Section */}
+            <div className="max-w-5xl mx-auto">
+                <div className="space-y-6">
+                    {course.topics && course.topics.length > 0 ? (
+                        course.topics
+                            .filter((topic: any) => !topic.parent_topic_id)
+                            .sort((a: any, b: any) => a.order - b.order)
                             .map((parentTopic: any) => {
-                                // Only show approved sub-topics
-                                const subTopics = topics.filter((t: any) =>
-                                    t.parent_topic_id === parentTopic.id && t.status === 'APPROVED'
-                                )
-
-                                // Don't show module if it has no approved sub-topics
-                                if (subTopics.length === 0) return null
+                                const allSubTopics = topics
+                                    .filter((t: any) => t.parent_topic_id === parentTopic.id)
+                                    .sort((a: any, b: any) => a.order - b.order)
+                                if (allSubTopics.length === 0) return null
 
                                 return (
-                                    <div key={parentTopic.id} className="border rounded-lg overflow-hidden">
-                                        <div className="bg-slate-100 border-b p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                                                        {parentTopic.order}. {parentTopic.title}
-                                                    </h3>
-                                                    <p className="text-sm text-slate-600 mt-1">{parentTopic.description}</p>
-                                                </div>
+                                    <div key={parentTopic.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                                        <div className="bg-slate-50/50 p-6 flex justify-between items-center">
+                                            <div>
+                                                <h3 className="text-lg font-bold text-slate-800 flex items-baseline gap-3">
+                                                    <span className="text-indigo-400 font-mono text-sm tracking-wider">MODULE {parentTopic.order}</span>
+                                                    {parentTopic.title}
+                                                </h3>
+                                                {parentTopic.description && (
+                                                    <p className="text-slate-500 text-sm mt-1 ml-24 max-w-2xl">{parentTopic.description}</p>
+                                                )}
                                             </div>
                                         </div>
 
-                                        {subTopics.length > 0 && (
-                                            <div className="p-4 space-y-2">
-                                                {subTopics.map((topic: any) => (
-                                                    <div key={topic.id} className="flex items-center justify-between p-3 bg-white rounded border hover:shadow-sm transition-shadow">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-medium">• {topic.title}</span>
-                                                                {completedTopicIds.has(topic.id) && (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                        <div className="divide-y divide-slate-50">
+                                            {allSubTopics.map((topic: any) => {
+                                                const isCompleted = completedTopicIds.has(topic.id)
+                                                const isPublished = topic.status === 'APPROVED' && parentTopic.is_published
+                                                return (
+                                                    <div
+                                                        key={topic.id}
+                                                        className={cn(
+                                                            "group p-5 transition-all flex items-center justify-between",
+                                                            isPublished ? "hover:bg-slate-50 cursor-pointer" : "opacity-60 cursor-not-allowed"
+                                                        )}
+                                                        onClick={() => isPublished && router.push(`/learn/courses/${id}/topics/${topic.id}`)}
+                                                    >
+                                                        <div className="flex items-center gap-5">
+                                                            <div className={`h-8 w-8 rounded-full flex items-center justify-center border-2 transition-all ${!isPublished ? 'border-slate-200 text-slate-300' :
+                                                                isCompleted ? 'bg-green-100 border-green-500 text-green-600 scale-100' :
+                                                                    'border-slate-200 text-slate-300 group-hover:border-indigo-300 group-hover:text-indigo-400 scale-95 group-hover:scale-100'
+                                                                }`}>
+                                                                {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <div className="h-2 w-2 rounded-full bg-current" />}
+                                                            </div>
+                                                            <div>
+                                                                <h4 className={`text-sm font-semibold ${!isPublished ? 'text-slate-400' :
+                                                                    isCompleted ? 'text-slate-900' :
+                                                                        'text-slate-700'
+                                                                    } group-hover:text-indigo-700 transition-colors`}>
+                                                                    {topic.title}
+                                                                </h4>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3">
+                                                            {isPublished && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        router.push(`/learn/courses/${id}/topics/${topic.id}/exams`)
+                                                                    }}
+                                                                    className="text-xs font-semibold bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 text-indigo-700 hover:from-indigo-100 hover:to-purple-100 hover:border-indigo-300 hover:shadow-md transition-all duration-200"
+                                                                >
+                                                                    <Brain className="h-3.5 w-3.5 mr-1.5" />
+                                                                    Practice Exam
+                                                                </Button>
+                                                            )}
+
+                                                            <div className="hidden sm:flex items-center gap-2 text-xs font-medium min-w-[100px] justify-end">
+                                                                {!isPublished ? (
+                                                                    <span className="text-slate-400">Coming Soon</span>
+                                                                ) : isCompleted ? (
+                                                                    <span className="text-green-600">Completed</span>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-1 text-slate-300 group-hover:text-indigo-600 transition-colors">
+                                                                        Start <ArrowLeft className="h-3 w-3 rotate-180" />
+                                                                    </span>
                                                                 )}
                                                             </div>
-                                                            <p className="text-xs text-slate-500 mt-1">{topic.description}</p>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => router.push(`/learn/courses/${id}/topics/${topic.id}`)}
-                                                            >
-                                                                <FileText className="mr-2 h-4 w-4" />
-                                                                View Content
-                                                            </Button>
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                                )
+                                            })}
+                                        </div>
                                     </div>
                                 )
-                            })}
-                    </div>
-                )}
-
-                {/* Content Dialog */}
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogContent className="max-w-5xl w-[95vw] sm:w-full h-[95vh] sm:h-[90vh] flex flex-col p-0">
-                        <DialogHeader className="px-4 sm:px-8 pt-4 sm:pt-8 pb-3 sm:pb-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
-                            <DialogTitle className="text-xl sm:text-2xl font-bold text-slate-900 pr-8">{selectedTopic?.title}</DialogTitle>
-                        </DialogHeader>
-
-                        <div className="flex-1 overflow-y-auto">
-                            {contentLoading ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-                                </div>
-                            ) : activeContent ? (
-                                <div className="px-4 sm:px-8 py-4 sm:py-8">
-                                    <article className="prose prose-slate prose-sm sm:prose-lg max-w-none">
-                                        <Markdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={{
-                                                h1: ({ node, ...props }: any) => <h1 className="text-3xl font-bold text-slate-900 mt-8 mb-4 pb-2 border-b-2 border-indigo-200" {...props} />,
-                                                h2: ({ node, ...props }: any) => <h2 className="text-2xl font-semibold text-slate-800 mt-8 mb-4" {...props} />,
-                                                h3: ({ node, ...props }: any) => <h3 className="text-xl font-semibold text-slate-700 mt-6 mb-3" {...props} />,
-                                                p: ({ node, ...props }: any) => <p className="text-base text-slate-700 leading-relaxed mb-4" {...props} />,
-                                                ul: ({ node, ...props }: any) => <ul className="list-disc list-inside space-y-2 mb-4 ml-4" {...props} />,
-                                                ol: ({ node, ...props }: any) => <ol className="list-decimal list-inside space-y-2 mb-4 ml-4" {...props} />,
-                                                li: ({ node, ...props }: any) => <li className="text-slate-700 leading-relaxed" {...props} />,
-                                                blockquote: ({ node, ...props }: any) => (
-                                                    <blockquote className="border-l-4 border-indigo-400 bg-indigo-50 pl-4 py-2 my-4 italic text-slate-700" {...props} />
-                                                ),
-                                                a: ({ node, ...props }: any) => <a className="text-indigo-600 hover:text-indigo-800 underline" {...props} />,
-                                                strong: ({ node, ...props }: any) => <strong className="font-semibold text-slate-900" {...props} />,
-                                                em: ({ node, ...props }: any) => <em className="italic text-slate-700" {...props} />,
-                                                code({ node, inline, className, children, ...props }: any) {
-                                                    const match = /language-(\w+)/.exec(className || '')
-                                                    return !inline && match ? (
-                                                        <div className="my-6 rounded-lg overflow-hidden shadow-md border border-slate-200">
-                                                            <div className="bg-slate-800 text-slate-100 px-4 py-2 text-sm font-mono flex items-center justify-between">
-                                                                <span>{match[1]}</span>
-                                                                <span className="text-[10px] opacity-70">Copy</span>
-                                                            </div>
-                                                            <SyntaxHighlighter
-                                                                style={vscDarkPlus}
-                                                                language={match[1]}
-                                                                PreTag="div"
-                                                                customStyle={{
-                                                                    margin: 0,
-                                                                    borderRadius: 0,
-                                                                    padding: '1.5rem',
-                                                                    fontSize: '0.9rem',
-                                                                    lineHeight: '1.6'
-                                                                }}
-                                                            >
-                                                                {String(children).replace(/\n$/, '')}
-                                                            </SyntaxHighlighter>
-                                                        </div>
-                                                    ) : (
-                                                        <code className="bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
-                                                            {children}
-                                                        </code>
-                                                    )
-                                                },
-                                                table: ({ node, ...props }: any) => (
-                                                    <div className="my-6 overflow-x-auto">
-                                                        <table className="min-w-full divide-y divide-slate-300 border border-slate-300" {...props} />
-                                                    </div>
-                                                ),
-                                                thead: ({ node, ...props }: any) => (
-                                                    <thead className="bg-slate-100" {...props} />
-                                                ),
-                                                tbody: ({ node, ...props }: any) => (
-                                                    <tbody className="divide-y divide-slate-200 bg-white" {...props} />
-                                                ),
-                                                tr: ({ node, ...props }: any) => (
-                                                    <tr className="hover:bg-slate-50" {...props} />
-                                                ),
-                                                th: ({ node, ...props }: any) => (
-                                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 border-r border-slate-300 last:border-r-0" {...props} />
-                                                ),
-                                                td: ({ node, ...props }: any) => (
-                                                    <td className="px-4 py-3 text-sm text-slate-700 border-r border-slate-200 last:border-r-0" {...props} />
-                                                )
-                                            }}
-                                        >
-                                            {activeContent}
-                                        </Markdown>
-                                    </article>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full px-8 text-center">
-                                    <FileText className="h-16 w-16 text-slate-300 mb-4" />
-                                    <p className="text-slate-500 mb-6">No content available yet</p>
-                                    <Button onClick={() => handleGenerateContent()} disabled={generating}>
-                                        {generating ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Generating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Play className="mr-2 h-4 w-4" />
-                                                Generate Content
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-
-                        {activeContent && (
-                            <div className="border-t px-4 sm:px-8 py-3 sm:py-4 bg-slate-50 flex justify-end items-center">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleExportPDF}
-                                >
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Export PDF
-                                </Button>
+                            })
+                    ) : (
+                        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300">
+                            <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Brain className="h-8 w-8 text-slate-400" />
                             </div>
-                        )}
-                    </DialogContent>
-                </Dialog>
-
-                {/* Remove all admin dialogs - Edit, Add, Delete, Regenerate, etc */}
+                            <h3 className="text-lg font-medium text-slate-900">No content available</h3>
+                            <p className="text-slate-500">This course doesn't have any published modules yet.</p>
+                        </div>
+                    )}
+                </div>
             </div>
-        </main>
+        </div>
     )
 }

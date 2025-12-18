@@ -206,6 +206,7 @@ class TopicContent(Base):
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     topic_id = Column(Uuid(as_uuid=True), ForeignKey("topics.id"), unique=True, nullable=False)
     content = Column(Text, nullable=False) 
+    approved_content = Column(Text, nullable=True) # For diffs/live view
     is_approved = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -262,6 +263,7 @@ class UserProgress(Base):
     course_id = Column(Uuid(as_uuid=True), ForeignKey("courses.id"), nullable=False)
     topic_id = Column(Uuid(as_uuid=True), ForeignKey("topics.id"), nullable=True)
     completed = Column(Boolean, default=False)
+    is_bookmarked = Column(Boolean, default=False)
     last_accessed = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     user = relationship("User", back_populates="progress")

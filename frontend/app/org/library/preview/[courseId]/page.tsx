@@ -272,6 +272,18 @@ export default function LibraryPreviewPage() {
                                             ol: ({ ...props }) => <ol className="list-decimal pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
                                             li: ({ ...props }) => <li className="pl-1" {...props} />,
                                             blockquote: ({ ...props }) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-3 my-4 italic text-slate-700 rounded-r" {...props} />,
+
+                                            // Premium Tables (Synced with Editor)
+                                            table: ({ ...props }) => (
+                                                <div className="my-6 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                                                    <table className="min-w-full divide-y divide-slate-200 border-collapse" {...props} />
+                                                </div>
+                                            ),
+                                            thead: ({ ...props }) => <thead className="bg-slate-50/80" {...props} />,
+                                            th: ({ ...props }) => <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-widest border-b border-slate-200" {...props} />,
+                                            td: ({ ...props }) => <td className="px-6 py-4 text-sm text-slate-600 border-b border-slate-100 last:border-b-0" {...props} />,
+                                            tr: ({ ...props }) => <tr className="hover:bg-slate-50/50 transition-colors even:bg-slate-50/30" {...props} />,
+
                                             code({ inline, className, children, ...props }: any) {
                                                 const match = /language-(\w+)/.exec(className || '')
                                                 return !inline && match ? (

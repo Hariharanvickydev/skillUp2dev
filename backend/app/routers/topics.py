@@ -151,6 +151,16 @@ def get_topic_content(
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
 
+    # VERSIONING: Students see APPROVED content only
+    if current_user.role == models.UserRole.STUDENT:
+        if not content.approved_content:
+             # If no approved content (fresh topic), students shouldn't see it even if they guessed the ID.
+             # But if IS_PUBLISHED is checked elsewhere, this handles the content integrity.
+             raise HTTPException(status_code=404, detail="Content not yet published")
+        
+        # Swap content for student view
+        content.content = content.approved_content
+
     return content
 
 @router.post("/{topic_id}/approve", response_model=schemas.Topic)
@@ -268,6 +278,12 @@ def approve_topic(
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
 
+    # Lock content: Copy current draft content to approved_content
+    content_record = db.query(models.TopicContent).filter(models.TopicContent.topic_id == topic_id).first()
+    if content_record:
+        content_record.approved_content = content_record.content
+        content_record.is_approved = True
+
     topic.status = "APPROVED"
     db.commit()
     return {"status": "APPROVED"}
@@ -297,12 +313,25 @@ def update_topic_content(
     topic_id: UUID,
     content_body: dict = Body(...),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Update topic content manually (Admin/Teacher)"""
     topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
+
+    # Permission Check
+    is_authorized = False
+    if current_user.role in [models.UserRole.SUPER_ADMIN, models.UserRole.ORG_ADMIN, models.UserRole.DEPT_HEAD]:
+        is_authorized = True
+    elif current_user.role == models.UserRole.TEACHER:
+        # Check assignment
+        course = topic.course
+        if course.assigned_teacher_id == current_user.id or current_user.id == course.creator_id or current_user in course.assignees:
+            is_authorized = True
+    
+    if not is_authorized:
+         raise HTTPException(status_code=403, detail="Not authorized to edit this topic")
         
     content_text = content_body.get('content')
     if content_text is None:
@@ -316,6 +345,8 @@ def update_topic_content(
     if existing_content:
         existing_content.content = content_text
         existing_content.updated_at = datetime.utcnow()
+        # Ensure is_approved is False for the NEW drafts if we rely on it, but we use approved_content column now.
+        existing_content.is_approved = False 
     else:
         new_content = models.TopicContent(
             topic_id=topic_id,
@@ -323,27 +354,22 @@ def update_topic_content(
         )
         db.add(new_content)
     
-    # NEW: Mark as synced (since user manually merged/edited) to avoid flagging as out-of-date immediately
+    # NEW: Mark as synced (since user manually merged/edited)
     topic.last_synced_at = datetime.utcnow()
     
-    # CONTENT VERSIONING: If topic is APPROVED, unpublish the module
-    if topic.status == "APPROVED":
-        # Find the module (parent topic)
-        if topic.parent_topic_id:
-            module = db.query(models.Topic).filter(models.Topic.id == topic.parent_topic_id).first()
-        else:
-            module = topic  # This IS the module
-        
-        # Unpublish the module so students see old version until HOD re-approves
-        if module and module.is_published:
-            module.is_published = False
-            # Mark course as having pending updates
-            course = topic.course
-            if course:
-                course.has_pending_updates = True
-
+    # CONTENT VERSIONING: Reset status to DRAFT to trigger re-approval workflow
+    # This ensures "Request Approval" button appears in frontend
+    if topic.status in ["APPROVED", "REJECTED"]:
+        topic.status = "DRAFT"
+        # DO NOT unpublish - keep old version visible to students!
+        # topic.is_published = False 
+        topic.has_pending_updates = True # Flag that there is a new draft on top of live
+    
+    # If it was already DRAFT, it stays DRAFT.
+    
     db.commit()
-    return {"message": "Content updated successfully"}
+    db.refresh(topic)
+    return topic
 
 @router.post("/{module_id}/republish")
 def republish_module(

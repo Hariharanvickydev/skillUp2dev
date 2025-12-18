@@ -21,6 +21,7 @@ interface DashboardStats {
     published_courses: number;
     active_students_7d: number;
     exams_conducted: number;
+    pending_approvals: number;
     daily_activity: { name: string; students: number }[];
     ai_usage: {
         used: number;
@@ -34,6 +35,7 @@ interface OrgInfo {
     subscription_plan: string;
     status: string;
     created_at: string;
+    type: string;
 }
 
 export default function OrgDashboard() {
@@ -158,6 +160,7 @@ export default function OrgDashboard() {
                     delay="300"
                 />
             </div>
+
 
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200 fill-mode-backwards">
@@ -284,6 +287,26 @@ export default function OrgDashboard() {
                                             </div>
                                         </div>
                                     )}
+                                    {/* Pending Approvals Alert */}
+                                    {(stats?.pending_approvals || 0) > 0 && (
+                                        <div
+                                            className="flex items-start gap-3 p-4 bg-indigo-50 text-indigo-700 rounded-xl text-sm border border-indigo-100 shadow-sm animate-in slide-in-from-right duration-500 cursor-pointer hover:bg-indigo-100 transition-colors"
+                                            onClick={() => router.push('/org/approvals')}
+                                        >
+                                            <FileText className="h-5 w-5 shrink-0 text-indigo-600" />
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-semibold text-indigo-800">Review Required</p>
+                                                    <span className="bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-bold">
+                                                        {stats?.pending_approvals}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-1">
+                                                    There are {stats?.pending_approvals} topics waiting for approval.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                     {stats && (stats.ai_usage.used / stats.ai_usage.limit) > 0.8 && (
                                         <div className="flex items-start gap-3 p-4 bg-orange-50 text-orange-700 rounded-xl text-sm border border-orange-100 shadow-sm animate-in slide-in-from-right duration-500 delay-100">
                                             <AlertTriangle className="h-5 w-5 shrink-0 text-orange-600" />
@@ -293,7 +316,7 @@ export default function OrgDashboard() {
                                             </div>
                                         </div>
                                     )}
-                                    {(!stats?.published_courses) && (
+                                    {((stats?.total_courses || 0) === 0) && (
                                         <div className="flex items-start gap-3 p-4 bg-blue-50 text-blue-700 rounded-xl text-sm border border-blue-100 shadow-sm animate-in slide-in-from-right duration-500 delay-200">
                                             <BookOpen className="h-5 w-5 shrink-0 text-blue-600" />
                                             <div>
