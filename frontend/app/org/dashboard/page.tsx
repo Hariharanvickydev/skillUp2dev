@@ -114,10 +114,6 @@ export default function OrgDashboard() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="px-4 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-semibold border border-green-200 uppercase tracking-wide flex items-center gap-2 shadow-sm whitespace-nowrap">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        {orgInfo?.subscription_plan || 'Free'} Plan
-                    </span>
                     <span className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold border border-blue-200 uppercase tracking-wide flex items-center gap-2 shadow-sm whitespace-nowrap">
                         <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                         {orgInfo?.status || 'Active'}

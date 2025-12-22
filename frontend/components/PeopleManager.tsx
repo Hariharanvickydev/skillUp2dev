@@ -58,10 +58,12 @@ import {
     AlertCircle,
     Key,
     Lock,
-    Unlock
+    Unlock,
+    Upload
 } from "lucide-react"
 import { toast } from "sonner"
 import { OrgGroupSelector } from "@/components/OrgGroupSelector"
+import { BulkUploadDialog } from "@/components/BulkUploadDialog"
 
 interface PeopleManagerProps {
     orgId: string
@@ -103,13 +105,24 @@ export function PeopleManager({ orgId, orgType = 'COLLEGE', apiMode }: PeopleMan
                         )}
                     </TabsList>
 
-                    <AddUserButton
-                        role={activeTab}
-                        orgId={orgId}
-                        orgType={orgType}
-                        apiMode={apiMode}
-                        onUserAdded={() => window.dispatchEvent(new CustomEvent('refresh-users'))}
-                    />
+                    <div className="flex gap-2">
+                        {activeTab === "STUDENT" && (
+                            <BulkUploadButton role="STUDENT" orgId={orgId} onSuccess={() => window.dispatchEvent(new CustomEvent('refresh-users'))} />
+                        )}
+                        {activeTab === "TEACHER" && (
+                            <BulkUploadButton role="TEACHER" orgId={orgId} onSuccess={() => window.dispatchEvent(new CustomEvent('refresh-users'))} />
+                        )}
+                        {activeTab === "DEPT_HEAD" && (
+                            <BulkUploadButton role="DEPT_HEAD" orgId={orgId} onSuccess={() => window.dispatchEvent(new CustomEvent('refresh-users'))} />
+                        )}
+                        <AddUserButton
+                            role={activeTab}
+                            orgId={orgId}
+                            orgType={orgType}
+                            apiMode={apiMode}
+                            onUserAdded={() => window.dispatchEvent(new CustomEvent('refresh-users'))}
+                        />
+                    </div>
                 </div>
 
                 <TabsContent value="TEACHER" className="mt-0">
@@ -777,5 +790,29 @@ export function SuccessView({ user, onClose }: { user: any, onClose: () => void 
                 </Button>
             </div>
         </div>
+    )
+}
+
+function BulkUploadButton({ role, orgId, onSuccess }: { role: string; orgId: string; onSuccess: () => void }) {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <>
+            <Button
+                onClick={() => setOpen(true)}
+                variant="outline"
+                className="border-purple-200 hover:bg-purple-50 hover:border-purple-300 text-purple-700 rounded-xl shadow-sm"
+            >
+                <Upload className="h-4 w-4 mr-2" />
+                Bulk Upload
+            </Button>
+            <BulkUploadDialog
+                open={open}
+                onOpenChange={setOpen}
+                onSuccess={onSuccess}
+                role={role}
+                orgId={orgId}
+            />
+        </>
     )
 }

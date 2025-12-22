@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import courses, auth, exams, topics, progress, organizations, users, analytics, admin_organizations, library, org, groups
+from .routers import courses, auth, exams, topics, progress, organizations, users, analytics, admin_organizations, library, org, groups, bulk
 from .database import engine, Base
 
 # Create tables
@@ -40,6 +40,7 @@ app.include_router(admin_organizations.router)
 app.include_router(library.router)
 app.include_router(org.router)
 app.include_router(groups.router)
+app.include_router(bulk.router)
 
 @app.get("/")
 def read_root():
