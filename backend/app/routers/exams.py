@@ -1901,7 +1901,7 @@ def get_practice_analytics(
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
     
-    if not exam.is_practice:
+    if exam.type != "PRACTICE":
         raise HTTPException(status_code=400, detail="This endpoint is only for practice exams")
     
     # Get all attempts
