@@ -389,7 +389,11 @@ export default function ExamDetailAnalyticsPage() {
                             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                                 <div>
                                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">Question Mastery</h2>
-                                    <p className="text-slate-500 font-medium">Deep-dive into student performance patterns</p>
+                                    <p className="text-slate-500 font-medium">
+                                        {exam.type === 'PRACTICE'
+                                            ? 'Performance analysis across all practice attempts'
+                                            : 'Deep-dive into student performance patterns'}
+                                    </p>
                                 </div>
                                 <div className="flex flex-wrap gap-3">
                                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-black uppercase tracking-widest">
