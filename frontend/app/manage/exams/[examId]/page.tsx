@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import PracticeAnalyticsView from "./components/PracticeAnalyticsView";
+import GroupedParticipantsView from "./components/GroupedParticipantsView";
 
 // Simple Skeleton fallback
 function Skeleton({ className }: { className?: string }) {
@@ -67,10 +68,12 @@ export default function ExamDetailAnalyticsPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [examRes, analyticsRes, attemptsRes] = await Promise.all([
-                api.get(`/exams/${examId}`),
+            const examRes = await api.get(`/exams/${examId}`);
+            const isPractice = examRes.data.is_practice;
+
+            const [analyticsRes, attemptsRes] = await Promise.all([
                 api.get(`/exams/${examId}/analytics`),
-                api.get(`/exams/${examId}/admin/attempts`)
+                api.get(`/exams/${examId}/admin/attempts${isPractice ? '?practice_mode=true' : ''}`)
             ]);
 
             setExam(examRes.data);
