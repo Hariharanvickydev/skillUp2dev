@@ -12,6 +12,15 @@ import {
     ArrowDown,
     Minus
 } from "lucide-react";
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer
+} from "recharts";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -182,12 +191,61 @@ export default function PracticeAnalyticsView({ examId }: PracticeAnalyticsViewP
                 </CardContent>
             </Card>
 
-            {/* Placeholder for charts - Phase 2 */}
-            <Card className="rounded-2xl border-slate-200 shadow-sm bg-slate-50">
-                <CardContent className="p-12 text-center">
-                    <p className="text-slate-500 font-medium">Learning Curve Chart - Coming in Phase 2</p>
-                </CardContent>
-            </Card>
+            {/* Learning Curve Chart */}
+            {analytics.learning_curve.length > 0 && (
+                <Card className="rounded-2xl border-slate-200 shadow-sm bg-white">
+                    <CardHeader>
+                        <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-3">
+                            <TrendingUp className="h-5 w-5 text-emerald-600" />
+                            Learning Curve
+                        </CardTitle>
+                        <p className="text-sm text-slate-500 font-medium">Average score progression by attempt number</p>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={analytics.learning_curve}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis
+                                        dataKey="attempt_number"
+                                        label={{ value: 'Attempt Number', position: 'insideBottom', offset: -5 }}
+                                        stroke="#64748b"
+                                    />
+                                    <YAxis
+                                        label={{ value: 'Average Score (%)', angle: -90, position: 'insideLeft' }}
+                                        stroke="#64748b"
+                                        domain={[0, 100]}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#fff',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '8px',
+                                            padding: '8px'
+                                        }}
+                                        formatter={(value: any, name: string) => {
+                                            if (name === 'average_score') return [`${value}%`, 'Avg Score'];
+                                            if (name === 'attempt_count') return [value, 'Students'];
+                                            return [value, name];
+                                        }}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="average_score"
+                                        stroke="#10b981"
+                                        strokeWidth={3}
+                                        dot={{ fill: '#10b981', r: 5 }}
+                                        activeDot={{ r: 7 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="mt-4 text-xs text-slate-500 text-center">
+                            Showing progression across {analytics.learning_curve.length} attempt position(s)
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
