@@ -188,6 +188,11 @@ class QuestionAnalytics(BaseModel):
     success_rate: float
     option_distribution: Dict[str, int]
     difficulty_label: str
+    
+    # Optional fields for practice exams
+    first_attempt_success_rate: Optional[float] = None
+    latest_attempt_success_rate: Optional[float] = None
+    improvement_percentage: Optional[float] = None
 
 class ExamAnalytics(BaseModel):
     total_attempts: int
