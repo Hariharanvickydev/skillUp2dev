@@ -69,7 +69,7 @@ export default function ExamDetailAnalyticsPage() {
         setLoading(true);
         try {
             const examRes = await api.get(`/exams/${examId}`);
-            const isPractice = examRes.data.is_practice;
+            const isPractice = examRes.data.type === 'PRACTICE';
 
             const [analyticsRes, attemptsRes] = await Promise.all([
                 api.get(`/exams/${examId}/analytics`),
@@ -217,7 +217,7 @@ export default function ExamDetailAnalyticsPage() {
 
                     {/* Overview Tab */}
                     <TabsContent value="overview" className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        {exam.is_practice ? (
+                        {exam.type === 'PRACTICE' ? (
                             /* Practice Exam Analytics */
                             <PracticeAnalyticsView examId={examId} />
                         ) : (
@@ -540,7 +540,7 @@ export default function ExamDetailAnalyticsPage() {
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0">
-                                {exam.is_practice ? (
+                                {exam.type === 'PRACTICE' ? (
                                     /* Practice Exam: Grouped View */
                                     <div className="p-8">
                                         <GroupedParticipantsView groups={attempts} examId={examId} />
