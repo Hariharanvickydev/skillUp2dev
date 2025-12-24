@@ -10,7 +10,7 @@ import {
     ChevronLeft, Users, Brain, Target, BarChart3, Clock,
     CheckCircle2, AlertCircle, HelpCircle, ArrowRight,
     Download, Share2, ClipboardList, PenLine, Save,
-    Activity, Award, TrendingUp, Filter, Search,
+    Activity, Award, TrendingUp, TrendingDown, Minus, Filter, Search,
     MessageSquare, UserCheck, UserMinus, RotateCcw, Calendar
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -474,6 +474,40 @@ export default function ExamDetailAnalyticsPage() {
                                                             />
                                                         </div>
                                                     </div>
+
+                                                    {/* Practice Exam: Learning Progression */}
+                                                    {exam.type === 'PRACTICE' && q.first_attempt_success_rate !== undefined && (
+                                                        <div className="mt-6 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Learning Progression</span>
+                                                                <div className={cn(
+                                                                    "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold",
+                                                                    q.improvement_percentage > 10 ? "bg-emerald-100 text-emerald-700" :
+                                                                        q.improvement_percentage < -10 ? "bg-red-100 text-red-700" :
+                                                                            "bg-slate-100 text-slate-600"
+                                                                )}>
+                                                                    {q.improvement_percentage > 0 ? (
+                                                                        <TrendingUp className="h-3 w-3" />
+                                                                    ) : q.improvement_percentage < 0 ? (
+                                                                        <TrendingDown className="h-3 w-3" />
+                                                                    ) : (
+                                                                        <Minus className="h-3 w-3" />
+                                                                    )}
+                                                                    {q.improvement_percentage > 0 ? '+' : ''}{q.improvement_percentage}%
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="text-center p-3 bg-white rounded-lg border border-slate-200">
+                                                                    <div className="text-xs text-slate-500 font-medium mb-1">First Attempt</div>
+                                                                    <div className="text-2xl font-black text-slate-700">{q.first_attempt_success_rate}%</div>
+                                                                </div>
+                                                                <div className="text-center p-3 bg-white rounded-lg border border-indigo-200">
+                                                                    <div className="text-xs text-indigo-600 font-medium mb-1">Latest Attempt</div>
+                                                                    <div className="text-2xl font-black text-indigo-700">{q.latest_attempt_success_rate}%</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="w-full md:w-[380px] bg-slate-50/50 p-8 border-t md:border-t-0 md:border-l border-slate-100 flex flex-col justify-center">
