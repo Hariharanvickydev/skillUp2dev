@@ -176,31 +176,44 @@ function CourseCard({ course, router, onAssign, isHOD }: { course: any, router: 
                         {course.description || "No description provided."}
                     </p>
 
-                    {/* Assignees Pill */}
-                    {(course.assignees?.length > 0 || course.assigned_teacher) ? (
-                        <div
-                            className={`inline-flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 ${isHOD ? 'cursor-pointer hover:bg-slate-100' : ''}`}
-                            onClick={(e) => {
-                                if (isHOD) {
-                                    e.stopPropagation();
-                                    onAssign();
+                    {/* Author Information */}
+                    <div className="text-xs text-slate-500 mb-3">
+                        {(() => {
+                            const hasModifications = course.last_modified_by;
+                            const hasApproval = course.approved_by;
+                            const originalCreator = course.original_creator || course.creator;
+
+                            if (!hasModifications && originalCreator) {
+                                return (
+                                    <div className="flex items-center gap-1.5">
+                                        <span>By {originalCreator.full_name || originalCreator.email}</span>
+                                    </div>
+                                );
+                            }
+
+                            if (hasModifications) {
+                                const parts = [];
+
+                                if (originalCreator && course.parent_course_id) {
+                                    parts.push(`Created by ${originalCreator.full_name || originalCreator.email}`);
                                 }
-                            }}
-                        >
-                            <Users className="h-3 w-3 text-indigo-500" />
-                            <span className="text-xs text-slate-600 font-medium">
-                                {course.assigned_teacher?.full_name || "Unassigned"}
-                            </span>
-                        </div>
-                    ) : (
-                        isHOD && (
-                            <div className="inline-flex items-center gap-2 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); onAssign(); }}>
-                                <UserPlus className="h-3 w-3 text-indigo-600" />
-                                <span className="text-xs text-indigo-600 font-medium">Assign Teacher</span>
-                            </div>
-                        )
-                    )}
+
+                                parts.push(`Modified by ${course.last_modified_by.full_name || course.last_modified_by.email}`);
+
+                                if (hasApproval && course.approved_by.id !== course.last_modified_by.id) {
+                                    parts.push(`Approved by ${course.approved_by.full_name || course.approved_by.email}`);
+                                }
+
+                                return (
+                                    <div className="flex items-center gap-1.5">
+                                        <span>{parts.join(' • ')}</span>
+                                    </div>
+                                );
+                            }
+
+                            return null;
+                        })()}
+                    </div>
                 </div>
 
                 <div className="mt-auto flex items-center justify-between text-sm text-slate-500 mb-4">

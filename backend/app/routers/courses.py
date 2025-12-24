@@ -47,6 +47,27 @@ def read_courses(
         
     return courses
 
+@router.get("/enrolled", response_model=List[schemas.Course])
+def get_enrolled_courses(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Get courses that the current user is enrolled in (Students only)"""
+    
+    # For now, use the same logic as the main course list
+    # Students see all PUBLISHED courses in their Organization
+    if current_user.role == models.UserRole.STUDENT:
+        organization_id = current_user.organization_id
+        courses = crud.get_courses(db, skip=0, limit=1000, published_only=True, organization_id=organization_id)
+        return courses
+    
+    # For non-students, return empty list or their assigned courses
+    if current_user.role in [models.UserRole.TEACHER, models.UserRole.DEPT_HEAD]:
+        courses = crud.get_courses_for_user(db, current_user, skip=0, limit=1000)
+        return courses
+    
+    return []
+
 @router.get("/{course_id}", response_model=schemas.Course)
 def read_course(
     course_id: UUID, 
@@ -68,6 +89,18 @@ def read_course(
             course.existing_clone_id = clone.id
             
     return course
+
+@router.get("/{course_id}/topics", response_model=List[schemas.Topic])
+def read_course_topics(
+    course_id: UUID, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """List topics for a specific course"""
+    # Verify course access? Optional but good practice.
+    # For now, allow viewing topics for any course visible to the user.
+    topics = crud.get_topics_by_course(db, course_id=course_id)
+    return topics
 
 @router.patch("/{course_id}", response_model=schemas.Course)
 def update_course(
@@ -136,6 +169,9 @@ def update_course(
             
     for key, value in update_data.items():
         setattr(db_course, key, value)
+    
+    # Track who modified the course
+    db_course.last_modified_by_user_id = current_user.id
         
     db.commit()
     db.refresh(db_course)
@@ -184,6 +220,11 @@ def approve_course(
         raise HTTPException(status_code=403, detail="Not authorized to approve (Must be Admin or HOD)")
 
     course.status = "APPROVED"
+    
+    # Only set approved_by if different from last_modified_by
+    # This handles the case where Head edits and approves directly
+    if course.last_modified_by_user_id != current_user.id:
+        course.approved_by_user_id = current_user.id
     # Optionally Publish here? Or let them call publish separately?
     # Let's auto-publish or define APPROVED as ready.
     # Plan says "Approve & Publish". Let's update status to APPROVED first.

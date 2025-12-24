@@ -163,29 +163,7 @@ def get_topic_content(
 
     return content
 
-@router.post("/{topic_id}/approve", response_model=schemas.Topic)
-def approve_topic(
-    topic_id: UUID,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.require_admin)
-):
-    """Approve a topic (Admin only)"""
-    topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
 
-    # Mark content as approved
-    content = crud.get_topic_content(db, topic_id)
-    if content:
-        content.is_approved = True
-        db.commit()
-
-    # Mark topic as approved
-    topic.status = "APPROVED"
-    db.commit()
-    db.refresh(topic)
-
-    return topic
 
 @router.put("/{topic_id}", response_model=schemas.Topic)
 def update_topic(
@@ -281,10 +259,22 @@ def approve_topic(
     # Lock content: Copy current draft content to approved_content
     content_record = db.query(models.TopicContent).filter(models.TopicContent.topic_id == topic_id).first()
     if content_record:
+        print(f"DEBUG_TRACE: Approving topic {topic_id}. Current Content Length: {len(content_record.content) if content_record.content else 0}")
         content_record.approved_content = content_record.content
         content_record.is_approved = True
+        print(f"DEBUG_TRACE: Set approved_content. New Length: {len(content_record.approved_content) if content_record.approved_content else 0}")
+    else:
+        print(f"DEBUG_TRACE: No content record found for topic {topic_id} during approval!")
 
     topic.status = "APPROVED"
+    
+    # Track who approved the course (via topic approval)
+    course = topic.course
+    if course:
+        # Only set approved_by if different from last_modified_by
+        if course.last_modified_by_user_id != current_user.id:
+            course.approved_by_user_id = current_user.id
+    
     db.commit()
     return {"status": "APPROVED"}
 
@@ -366,6 +356,11 @@ def update_topic_content(
         topic.has_pending_updates = True # Flag that there is a new draft on top of live
     
     # If it was already DRAFT, it stays DRAFT.
+    
+    # Track who modified the course (via topic content update)
+    course = topic.course
+    if course:
+        course.last_modified_by_user_id = current_user.id
     
     db.commit()
     db.refresh(topic)

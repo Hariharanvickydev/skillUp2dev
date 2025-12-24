@@ -1,7 +1,7 @@
 "use client";
 import DashboardLayout from '@/components/DashboardLayout';
 
-export default function OrgLayout({
+export default function ManageLayout({
     children,
 }: {
     children: React.ReactNode;

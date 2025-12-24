@@ -2,13 +2,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut, Menu, BookOpen, GraduationCap, ClipboardCheck, Brain } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, FileText, BarChart3, Settings, LogOut, Menu, Book } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-export default function StudentLayout({
+export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -23,15 +23,39 @@ export default function StudentLayout({
         router.push('/login');
     };
 
-    const navigation = [
-        { name: 'My Learning', href: '/learn', icon: BookOpen },
-        { name: 'Practice Library', href: '/learn/practice', icon: Brain },
-        { name: 'Assessments', href: '/learn/assessments', icon: ClipboardCheck },
-    ];
+    const getNavigation = () => {
+        const role = user?.role;
+        if (role === 'ORG_ADMIN') {
+            return [
+                { name: 'Dashboard', href: '/org/dashboard', icon: LayoutDashboard },
+                { name: 'People', href: '/org/people', icon: Users },
+                { name: 'Library', href: '/org/library', icon: Book },
+                { name: 'Courses', href: '/org/courses', icon: BookOpen },
+                { name: 'Exams', href: '/manage/exams', icon: FileText },
+                { name: 'Analytics', href: '/org/analytics', icon: BarChart3 },
+            ];
+        } else if (role === 'DEPT_HEAD') {
+            return [
+                { name: 'Dashboard', href: '/org/hod/dashboard', icon: LayoutDashboard },
+                { name: 'Courses', href: '/org/hod/courses', icon: BookOpen },
+                { name: 'Exams', href: '/manage/exams', icon: FileText },
+                { name: 'Analytics', href: '/org/analytics', icon: BarChart3 },
+            ];
+        } else if (role === 'TEACHER') {
+            return [
+                { name: 'Dashboard', href: '/org/teacher/dashboard', icon: LayoutDashboard },
+                { name: 'Courses', href: '/org/teacher/courses', icon: BookOpen },
+                { name: 'Exams', href: '/manage/exams', icon: FileText },
+            ];
+        }
+        return [];
+    };
+
+    const navigation = getNavigation();
 
     const SidebarContent = ({ collapsed = false }: { collapsed?: boolean }) => (
         <div className="flex flex-col h-full bg-slate-900 text-white relative overflow-hidden transition-all duration-300">
-            {/* Background Effects (Matching Org Admin) */}
+            {/* Background Effects */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
                 <div className="absolute top-[-10%] left-[-20%] w-[80%] h-[40%] bg-indigo-600/20 blur-[100px] rounded-full"></div>
                 <div className="absolute bottom-[-10%] right-[-20%] w-[80%] h-[40%] bg-purple-600/20 blur-[100px] rounded-full"></div>
@@ -41,12 +65,12 @@ export default function StudentLayout({
             <div className={cn("relative z-10 border-b border-slate-800/50 flex flex-col justify-center", collapsed ? "p-4 items-center h-20" : "p-6 h-24")}>
                 <div className="flex items-center gap-3 transition-all duration-300">
                     <div className={cn("bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 transition-all duration-300", collapsed ? "h-10 w-10 min-w-[2.5rem]" : "h-10 w-10")}>
-                        <GraduationCap className="h-6 w-6 text-white" />
+                        <span className="font-bold text-lg">S</span>
                     </div>
                     {!collapsed && (
                         <div className="transition-opacity duration-300 opacity-100 whitespace-nowrap overflow-hidden">
                             <h1 className="text-xl font-bold tracking-tight text-white">SkillUp2Dev</h1>
-                            <p className="text-xs text-slate-400 font-medium tracking-wide">STUDENT PORTAL</p>
+                            <p className="text-xs text-slate-400 font-medium tracking-wide">{user?.role ? user.role.replace('_', ' ') : 'ORG ADMIN'}</p>
                         </div>
                     )}
                 </div>
@@ -56,7 +80,7 @@ export default function StudentLayout({
             <nav className="flex-1 p-3 space-y-2 relative z-10 overflow-y-auto overflow-x-hidden">
                 {!collapsed && <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-2 transition-opacity duration-300">Menu</p>}
                 {navigation.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== '/learn' && pathname.startsWith(item.href));
+                    const isActive = pathname.startsWith(item.href);
                     return (
                         <Link
                             key={item.name}
@@ -73,6 +97,7 @@ export default function StudentLayout({
                             <item.icon className={cn("h-5 w-5 shrink-0", isActive ? "text-white" : "text-slate-500 group-hover:text-white transition-colors")} />
                             {!collapsed && <span className="whitespace-nowrap overflow-hidden transition-all duration-300">{item.name}</span>}
 
+                            {/* Tooltip-like popup on hover when collapsed */}
                             {collapsed && (
                                 <div className="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-xl border border-slate-700">
                                     {item.name}
@@ -81,40 +106,31 @@ export default function StudentLayout({
                         </Link>
                     );
                 })}
+
+
             </nav>
 
             {/* User Profile / Logout */}
             <div className="p-3 border-t border-slate-800/50 relative z-10">
                 <div className={cn("bg-slate-800/50 rounded-2xl p-3 backdrop-blur-sm border border-slate-700/50 transition-all duration-300", collapsed && "p-2 bg-transparent border-0")}>
                     <div className={cn("flex items-center gap-3 mb-3", collapsed && "justify-center mb-0")}>
-                        <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold shadow-md">
-                            {user?.full_name?.[0] || 'S'}
+                        <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold shadow-md">
+                            {user?.full_name?.[0] || 'O'}
                         </div>
                         {!collapsed && (
                             <div className="overflow-hidden transition-all duration-300">
-                                <p className="text-sm font-medium text-white truncate max-w-[140px]">{user?.full_name || 'Student'}</p>
+                                <p className="text-sm font-medium text-white truncate max-w-[140px]">{user?.full_name || 'Org Admin'}</p>
                                 <p className="text-xs text-slate-400 truncate max-w-[140px]">{user?.email}</p>
                             </div>
                         )}
                     </div>
-                    {!collapsed ? (
+                    {!collapsed && (
                         <button
                             onClick={handleLogout}
                             className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white text-xs font-semibold transition-all duration-200 whitespace-nowrap"
                         >
                             <LogOut className="h-3.5 w-3.5" />
                             Sign Out
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleLogout}
-                            title="Sign Out"
-                            className="w-full flex items-center justify-center py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-200 group relative"
-                        >
-                            <LogOut className="h-4 w-4" />
-                            <div className="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-xl border border-slate-700">
-                                Sign Out
-                            </div>
                         </button>
                     )}
                 </div>

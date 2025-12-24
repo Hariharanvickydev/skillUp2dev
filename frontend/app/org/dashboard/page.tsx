@@ -100,8 +100,8 @@ export default function OrgDashboard() {
     // Navigation handlers
     const handleAddStudent = () => handleAddUserClick('STUDENT');
     const handleAddTeacher = () => handleAddUserClick('TEACHER');
-    const handleImportCourse = () => router.push('/org/courses/import');
-    const handleViewExams = () => router.push('/org/exams');
+    const handleImportCourse = () => router.push('/org/library?tab=not-imported');
+    const handleViewExams = () => router.push('/manage/exams');
 
     return (
         <div className="p-8 space-y-10 max-w-7xl mx-auto pb-20">

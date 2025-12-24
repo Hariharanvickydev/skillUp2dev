@@ -172,7 +172,8 @@ class ExamBase(BaseModel):
     difficulty: str = "medium"
     duration_minutes: int = 30
     passing_score: int = 70
-    type: str = "PRACTICE" # PRACTICE, MODULE, FINAL
+    type: str = "PRACTICE" # PRACTICE, MODULE, FINAL, TOPIC_TEST
+    scope: Optional[str] = None  # For PRACTICE exams: 'TOPIC', 'MODULE', 'COURSE'
 
 class ExamCreate(ExamBase):
     topic_id: Optional[UUID] = None
@@ -182,11 +183,14 @@ class ExamCreate(ExamBase):
 
 class Exam(ExamBase):
     id: UUID
+    title: Optional[str] = None
     topic_id: Optional[UUID]
     module_id: Optional[UUID] = None
     course_id: Optional[UUID] = None
+    scope: Optional[str] = None
     questions: List[Dict[str, Any]]
     is_published: bool
+    num_attempts: int = 0
     created_at: datetime
 
     class Config:
@@ -266,6 +270,12 @@ class Course(CourseBase):
     assigned_teacher_id: Optional[UUID] = None
     assigned_teacher: Optional[UserBasic] = None
     assignees: List[UserBasic] = []
+    
+    # Author tracking
+    creator: Optional[UserBasic] = None
+    last_modified_by: Optional[UserBasic] = None
+    approved_by: Optional[UserBasic] = None
+    original_creator: Optional[UserBasic] = None  # For cloned courses
     
     existing_clone_id: Optional[UUID] = None  # To track if already imported
     
@@ -351,7 +361,11 @@ class TokenData(BaseModel):
 class ExamForStudent(BaseModel):
     """Exam response for students - without correct answers"""
     id: UUID
-    topic_id: UUID
+    topic_id: Optional[UUID] = None
+    course_id: Optional[UUID] = None
+    module_id: Optional[UUID] = None
+    title: Optional[str] = None
+    scope: Optional[str] = None
     difficulty: str
     duration_minutes: int
     passing_score: int

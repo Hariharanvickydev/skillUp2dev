@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getLibraryCourses, importLibraryCourse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ import {
 
 export default function OrgLibraryPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user } = useAuth();
     const [courses, setCourses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -48,7 +49,11 @@ export default function OrgLibraryPage() {
     // Import State
     const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
     const [importLoading, setImportLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState("all");
+
+    // Get tab from URL parameter, default to "all"
+    const tabParam = searchParams.get('tab');
+    const initialTab = tabParam === 'not-imported' ? 'new' : tabParam || 'all';
+    const [activeTab, setActiveTab] = useState(initialTab);
 
     // Filters
     const [searchQuery, setSearchQuery] = useState("");

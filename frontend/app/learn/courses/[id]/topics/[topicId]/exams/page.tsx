@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowLeft, Brain, Plus, Users, Calendar, Loader2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Brain, Plus, Users, Calendar, Loader2, Star, TrendingUp } from 'lucide-react'
 import { toast } from "sonner"
 
 interface Exam {
@@ -15,7 +16,13 @@ interface Exam {
     num_questions: number
     duration_minutes: number
     num_attempts: number
+    pass_rate: number
+    avg_score: number
+    quality_score: number
+    is_popular: boolean
+    is_high_quality: boolean
     created_by: string
+    owner_type: string
     created_at: string
     is_mine: boolean
 }
@@ -23,12 +30,15 @@ interface Exam {
 export default function ExamLibraryPage() {
     const params = useParams()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const courseId = params.id as string
     const topicId = params.topicId as string
+    const returnTo = searchParams.get('returnTo')
 
     const [exams, setExams] = useState<Exam[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<string>('all')
+    const [sortBy, setSortBy] = useState<string>('recent')
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [creating, setCreating] = useState(false)
     const [selectedDifficulty, setSelectedDifficulty] = useState('medium')
@@ -36,14 +46,15 @@ export default function ExamLibraryPage() {
 
     useEffect(() => {
         fetchExams()
-    }, [filter])
+    }, [filter, sortBy])
 
     const fetchExams = async () => {
         setLoading(true)
         try {
-            const url = filter === 'all'
-                ? `http://localhost:8000/exams/topics/${topicId}/exams`
-                : `http://localhost:8000/exams/topics/${topicId}/exams?difficulty=${filter}`
+            let url = `http://localhost:8000/exams/topics/${topicId}/exams?sort_by=${sortBy}`
+            if (filter !== 'all') {
+                url += `&difficulty=${filter}`
+            }
 
             const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -82,7 +93,13 @@ export default function ExamLibraryPage() {
 
             const exam = JSON.parse(responseText)
             setShowCreateDialog(false)
-            router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${exam.id}`)
+
+            // Construct return URL that preserves the current context
+            const currentReturnTo = searchParams.get('returnTo')
+            const baseReturn = `/learn/courses/${courseId}/topics/${topicId}/exams`
+            const fullReturn = currentReturnTo ? `${baseReturn}?returnTo=${encodeURIComponent(currentReturnTo)}` : baseReturn
+
+            router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${exam.id}?returnTo=${encodeURIComponent(fullReturn)}`)
         } catch (error) {
             console.error('Error creating exam:', error)
             toast.error(`Failed to create exam: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -92,7 +109,11 @@ export default function ExamLibraryPage() {
     }
 
     const handleTakeExam = (examId: string) => {
-        router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${examId}`)
+        const currentReturnTo = searchParams.get('returnTo')
+        const baseReturn = `/learn/courses/${courseId}/topics/${topicId}/exams`
+        const fullReturn = currentReturnTo ? `${baseReturn}?returnTo=${encodeURIComponent(currentReturnTo)}` : baseReturn
+
+        router.push(`/learn/courses/${courseId}/topics/${topicId}/exam/${examId}?returnTo=${encodeURIComponent(fullReturn)}`)
     }
 
     const getDifficultyColor = (difficulty: string) => {
@@ -116,6 +137,14 @@ export default function ExamLibraryPage() {
         return date.toLocaleDateString()
     }
 
+    const handleBack = () => {
+        if (returnTo) {
+            router.push(returnTo)
+        } else {
+            router.push(`/learn/courses/${courseId}/topics/${topicId}`)
+        }
+    }
+
     return (
         <main className="flex min-h-screen flex-col bg-slate-50">
             {/* Header */}
@@ -123,7 +152,7 @@ export default function ExamLibraryPage() {
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <Button variant="ghost" size="icon" onClick={() => router.push(`/learn/courses/${courseId}`)}>
+                            <Button variant="ghost" size="icon" onClick={handleBack}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                             <div>
@@ -148,7 +177,7 @@ export default function ExamLibraryPage() {
             {/* Content */}
             <div className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8">
                 {/* Filters */}
-                <div className="flex gap-2 mb-6">
+                <div className="flex flex-wrap gap-2 mb-6 items-center">
                     <Button
                         variant={filter === 'all' ? 'default' : 'outline'}
                         size="sm"
@@ -177,6 +206,19 @@ export default function ExamLibraryPage() {
                     >
                         Hard
                     </Button>
+
+                    <div className="ml-auto">
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Sort by" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="recent">Most Recent</SelectItem>
+                                <SelectItem value="popular">Most Popular</SelectItem>
+                                <SelectItem value="quality">Highest Quality</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 {/* Exam Grid */}
@@ -198,10 +240,40 @@ export default function ExamLibraryPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {exams.map((exam) => (
                             <Card key={exam.id} className="p-6 hover:shadow-lg transition-shadow">
-                                <div className="flex items-start justify-between mb-4">
+                                <div className="flex flex-wrap gap-2 mb-4">
                                     <Badge className={getDifficultyColor(exam.difficulty)}>
                                         {exam.difficulty}
                                     </Badge>
+
+                                    {/* Owner Type Badge */}
+                                    {exam.owner_type === 'TEACHER' && (
+                                        <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">
+                                            👨‍🏫 Teacher
+                                        </Badge>
+                                    )}
+                                    {exam.owner_type === 'STUDENT' && (
+                                        <Badge className="bg-green-100 text-green-700 border-green-200">
+                                            👨‍🎓 Student
+                                        </Badge>
+                                    )}
+                                    {exam.owner_type === 'SYSTEM' && (
+                                        <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                                            🤖 AI
+                                        </Badge>
+                                    )}
+
+                                    {/* Quality Badges */}
+                                    {exam.is_popular && (
+                                        <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                                            🔥 Popular
+                                        </Badge>
+                                    )}
+                                    {exam.is_high_quality && (
+                                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                            ⭐ High Quality
+                                        </Badge>
+                                    )}
+
                                     {exam.is_mine && (
                                         <Badge variant="outline" className="text-xs">
                                             Your exam
@@ -222,6 +294,18 @@ export default function ExamLibraryPage() {
                                         <Brain className="h-4 w-4" />
                                         <span>{exam.num_attempts} attempts</span>
                                     </div>
+                                    {exam.num_attempts > 0 && (
+                                        <>
+                                            <div className="flex items-center gap-2">
+                                                <TrendingUp className="h-4 w-4" />
+                                                <span>Avg: {exam.avg_score}%</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Star className="h-4 w-4" />
+                                                <span>Pass: {exam.pass_rate}%</span>
+                                            </div>
+                                        </>
+                                    )}
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-4 w-4" />
                                         <span>{formatDate(exam.created_at)}</span>

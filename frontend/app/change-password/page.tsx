@@ -14,7 +14,7 @@ export default function ChangePasswordPage() {
     const [confirmPassword, setConfirmPassword] = useState("")
     const [loading, setLoading] = useState(false)
     const router = useRouter()
-    const { logout } = useAuth() // In case they want to cancel
+    const { logout, user } = useAuth() // In case they want to cancel
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -31,9 +31,19 @@ export default function ChangePasswordPage() {
         try {
             await changePassword(password)
             toast.success("Password changed successfully")
-            // Redirect to home/dashboard - AuthContext should handle role-based redirect if we refresh or push
-            // But since we are likely already logged in (just forced to reset), we can just go to root
-            router.push("/")
+
+            // Role-based redirect
+            if (user?.role === 'SUPER_ADMIN') {
+                router.push('/admin/dashboard')
+            } else if (user?.role === 'ORG_ADMIN') {
+                router.push('/org/dashboard')
+            } else if (user?.role === 'DEPT_HEAD') {
+                router.push('/org/hod/dashboard')
+            } else if (user?.role === 'TEACHER') {
+                router.push('/org/teacher/dashboard')
+            } else {
+                router.push('/learn')
+            }
         } catch (e: any) {
             toast.error(e.response?.data?.detail || "Failed to change password")
         } finally {

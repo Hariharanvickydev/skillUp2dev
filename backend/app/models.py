@@ -22,6 +22,22 @@ class UserRole(str, enum.Enum):
     TEACHER = "TEACHER"
     STUDENT = "STUDENT"
 
+class ExamStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+    DISABLED = "DISABLED"
+    ARCHIVED = "ARCHIVED"
+
+class OwnerType(str, enum.Enum):
+    STUDENT = "STUDENT"
+    TEACHER = "TEACHER"
+    SYSTEM = "SYSTEM"
+
+class CreationMode(str, enum.Enum):
+    AI = "AI"
+    MANUAL = "MANUAL"
+    IMPORT = "IMPORT"
+
 class Organization(Base):
     __tablename__ = "organizations"
 
@@ -164,6 +180,10 @@ class Course(Base):
     difficulty = Column(String, default="Beginner") # Beginner, Intermediate, Advanced
     outcomes = Column(JSON, default=[]) # e.g. ["Understand Basic Syntax", "Build API"]
 
+    # Author Tracking
+    last_modified_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    approved_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
     is_published = Column(Boolean, default=False)
     has_pending_updates = Column(Boolean, default=False)  # True when approved content is edited but not re-published
     created_at = Column(DateTime, server_default=func.now())
@@ -173,6 +193,8 @@ class Course(Base):
     creator = relationship("User", back_populates="courses", foreign_keys=[creator_id])
     assigned_teacher = relationship("User", foreign_keys=[assigned_teacher_id])
     assignees = relationship("User", secondary=course_assignments, back_populates="assigned_courses")
+    last_modified_by = relationship("User", foreign_keys=[last_modified_by_user_id])
+    approved_by = relationship("User", foreign_keys=[approved_by_user_id])
     # Added IQ relationship
     important_questions = relationship("ImportantQuestions", back_populates="course", cascade="all, delete-orphan")
 
@@ -223,7 +245,9 @@ class Exam(Base):
     module_id = Column(Uuid(as_uuid=True), ForeignKey("topics.id"), nullable=True) # Module is also a Topic
     course_id = Column(Uuid(as_uuid=True), ForeignKey("courses.id"), nullable=True)
     
-    type = Column(String, default="PRACTICE") # PRACTICE, MODULE, FINAL
+    type = Column(String, default="PRACTICE") # PRACTICE, MODULE, FINAL, TOPIC_TEST
+    scope = Column(String, nullable=True)  # For PRACTICE exams: 'TOPIC', 'MODULE', 'COURSE'
+    title = Column(String, nullable=True)  # Auto-generated or custom title
     
     created_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
     questions = Column(JSON, nullable=False) 
@@ -232,6 +256,16 @@ class Exam(Base):
     passing_score = Column(Integer, default=70)
     is_published = Column(Boolean, default=False)
     is_public = Column(Boolean, default=True)
+    
+    # New lifecycle management fields
+    exam_status = Column(String, default=ExamStatus.DRAFT.value)  # DRAFT, ACTIVE, DISABLED, ARCHIVED
+    owner_type = Column(String, default=OwnerType.STUDENT.value)  # STUDENT, TEACHER, SYSTEM
+    creation_mode = Column(String, default=CreationMode.AI.value)  # AI, MANUAL, IMPORT
+    
+    # Question locking (prevents edits after first attempt)
+    is_locked = Column(Boolean, default=False)
+    locked_at = Column(DateTime, nullable=True)
+    
     num_attempts = Column(Integer, default=0)
     
     created_at = Column(DateTime, server_default=func.now())

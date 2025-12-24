@@ -140,6 +140,50 @@ export default function LearnPage() {
                                             <p className="text-slate-500 text-sm line-clamp-2 mb-4 h-10 leading-relaxed">
                                                 {course.description || "Master this subject with our comprehensive curriculum."}
                                             </p>
+
+                                            {/* Author Information */}
+                                            <div className="text-xs text-slate-500 mb-3">
+                                                {(() => {
+                                                    // Determine what to display based on course state
+                                                    const hasModifications = course.last_modified_by;
+                                                    const hasApproval = course.approved_by;
+                                                    const originalCreator = course.original_creator || course.creator;
+
+                                                    if (!hasModifications && originalCreator) {
+                                                        // Just cloned, no changes
+                                                        return (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span>By {originalCreator.full_name || originalCreator.email}</span>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    if (hasModifications) {
+                                                        const parts = [];
+
+                                                        // Original creator
+                                                        if (originalCreator && course.parent_course_id) {
+                                                            parts.push(`Created by ${originalCreator.full_name || originalCreator.email}`);
+                                                        }
+
+                                                        // Modified by
+                                                        parts.push(`Modified by ${course.last_modified_by.full_name || course.last_modified_by.email}`);
+
+                                                        // Approved by (only if different from modifier)
+                                                        if (hasApproval && course.approved_by.id !== course.last_modified_by.id) {
+                                                            parts.push(`Approved by ${course.approved_by.full_name || course.approved_by.email}`);
+                                                        }
+
+                                                        return (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span>{parts.join(' • ')}</span>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    return null;
+                                                })()}
+                                            </div>
                                         </div>
 
                                         <div className="mt-auto">

@@ -48,6 +48,21 @@ export const getCourses = async (params?: any) => {
     return response.data;
 };
 
+export const getEnrolledCourses = async () => {
+    const response = await api.get('/courses/enrolled');
+    return response.data;
+};
+
+export const getCourseExams = async (courseId: string) => {
+    const response = await api.get(`/exams/courses/${courseId}`);
+    return response.data;
+};
+
+export const getExamAttempts = async (examId: string) => {
+    const response = await api.get(`/exams/${examId}/attempts`);
+    return response.data;
+};
+
 export const getCourse = async (id: string) => {
     const response = await api.get(`/courses/${id}`);
     return response.data;

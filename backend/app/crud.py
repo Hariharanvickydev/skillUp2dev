@@ -4,7 +4,19 @@ from . import models, schemas, auth
 from uuid import UUID
 
 def get_course(db: Session, course_id: UUID):
-    return db.query(models.Course).filter(models.Course.id == course_id).first()
+    course = db.query(models.Course).filter(models.Course.id == course_id).first()
+    
+    if course and course.parent_course_id:
+        # Fetch the original library course creator
+        parent_course = db.query(models.Course).filter(
+            models.Course.id == course.parent_course_id
+        ).first()
+        
+        if parent_course and parent_course.creator:
+            # Attach original creator to the course object
+            course.original_creator = parent_course.creator
+    
+    return course
 
 def get_user(db: Session, user_id: UUID):
     # Eager load organization and group hierarchy for profile/auth
@@ -22,8 +34,24 @@ def get_courses(db: Session, skip: int = 0, limit: int = 100, published_only: bo
     
     if organization_id:
         query = query.filter(models.Course.organization_id == organization_id)
+    
+    courses = query.offset(skip).limit(limit).all()
+    
+    # For cloned courses, fetch original creators
+    parent_course_ids = [c.parent_course_id for c in courses if c.parent_course_id]
+    if parent_course_ids:
+        parent_courses = db.query(models.Course).filter(
+            models.Course.id.in_(parent_course_ids)
+        ).all()
+        parent_map = {p.id: p for p in parent_courses}
         
-    return query.offset(skip).limit(limit).all()
+        for course in courses:
+            if course.parent_course_id and course.parent_course_id in parent_map:
+                parent = parent_map[course.parent_course_id]
+                if parent.creator:
+                    course.original_creator = parent.creator
+    
+    return courses
 
 def get_courses_for_user(db: Session, user: models.User, skip: int = 0, limit: int = 100):
     """

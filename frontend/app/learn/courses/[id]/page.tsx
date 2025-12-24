@@ -99,6 +99,45 @@ export default function CourseDetailPage() {
                                 <p className="text-lg text-white/90 max-w-2xl leading-relaxed mt-4">
                                     {course.description || "Master this subject with our comprehensive curriculum."}
                                 </p>
+
+                                {/* Author Information */}
+                                <div className="text-sm text-white/70 mt-4">
+                                    {(() => {
+                                        const hasModifications = course.last_modified_by;
+                                        const hasApproval = course.approved_by;
+                                        const originalCreator = course.original_creator || course.creator;
+
+                                        if (!hasModifications && originalCreator) {
+                                            return (
+                                                <div className="flex items-center gap-2">
+                                                    <span>By {originalCreator.full_name || originalCreator.email}</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        if (hasModifications) {
+                                            const parts = [];
+
+                                            if (originalCreator && course.parent_course_id) {
+                                                parts.push(`Created by ${originalCreator.full_name || originalCreator.email}`);
+                                            }
+
+                                            parts.push(`Modified by ${course.last_modified_by.full_name || course.last_modified_by.email}`);
+
+                                            if (hasApproval && course.approved_by.id !== course.last_modified_by.id) {
+                                                parts.push(`Approved by ${course.approved_by.full_name || course.approved_by.email}`);
+                                            }
+
+                                            return (
+                                                <div className="flex items-center gap-2">
+                                                    <span>{parts.join(' • ')}</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        return null;
+                                    })()}
+                                </div>
                             </div>
 
                             {/* Progress Bar & Continue Button */}
@@ -200,20 +239,8 @@ export default function CourseDetailPage() {
                                                         </div>
 
                                                         <div className="flex items-center gap-3">
-                                                            {isPublished && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        router.push(`/learn/courses/${id}/topics/${topic.id}/exams`)
-                                                                    }}
-                                                                    className="text-xs font-semibold bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 text-indigo-700 hover:from-indigo-100 hover:to-purple-100 hover:border-indigo-300 hover:shadow-md transition-all duration-200"
-                                                                >
-                                                                    <Brain className="h-3.5 w-3.5 mr-1.5" />
-                                                                    Practice Exam
-                                                                </Button>
-                                                            )}
+
+
 
                                                             <div className="hidden sm:flex items-center gap-2 text-xs font-medium min-w-[100px] justify-end">
                                                                 {!isPublished ? (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react'
@@ -10,6 +10,9 @@ import { toast } from "sonner"
 export default function ExamPage() {
     const params = useParams()
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const returnTo = searchParams.get('returnTo')
+
     const courseId = params.id as string
     const topicId = params.topicId as string
     const examId = params.examId as string
@@ -81,6 +84,14 @@ export default function ExamPage() {
         }
     }
 
+    const handleBack = () => {
+        if (returnTo) {
+            router.push(returnTo)
+        } else {
+            router.push(`/learn/courses/${courseId}/topics/${topicId}/exams`)
+        }
+    }
+
     if (loading) return <div className="p-4 sm:p-8 md:p-12">Loading exam...</div>
     if (!exam) return <div className="p-4 sm:p-8 md:p-12">Exam not found</div>
 
@@ -90,7 +101,7 @@ export default function ExamPage() {
             <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" onClick={() => router.push(`/learn/courses/${courseId}/topics/${topicId}`)}>
+                        <Button variant="ghost" size="icon" onClick={handleBack}>
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                         <div>
@@ -134,7 +145,7 @@ export default function ExamPage() {
                         ))}
 
                         <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="outline" onClick={() => router.push(`/learn/courses/${courseId}/topics/${topicId}`)}>
+                            <Button variant="outline" onClick={handleBack}>
                                 Cancel
                             </Button>
                             <Button
@@ -172,8 +183,8 @@ export default function ExamPage() {
                                 {result.passed ? 'Congratulations! You passed!' : 'Keep practicing!'}
                             </p>
                             <div className="flex gap-3 justify-center">
-                                <Button variant="outline" onClick={() => router.push(`/learn/courses/${courseId}/topics/${topicId}`)}>
-                                    Back to Topic
+                                <Button variant="outline" onClick={handleBack}>
+                                    Back to Exam List
                                 </Button>
                                 <Button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-700">
                                     Try Again

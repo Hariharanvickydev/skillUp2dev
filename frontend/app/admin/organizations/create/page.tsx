@@ -83,30 +83,30 @@ export default function CreateOrganizationPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-20">
+        <div className="max-w-7xl mx-auto p-8 lg:p-12 space-y-10 pb-20">
             {/* Header Section */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 pb-32 pt-16 px-8">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 text-white shadow-2xl shadow-indigo-900/20">
                 <div className="absolute top-0 right-0 -mt-20 -mr-20 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-80 w-80 rounded-full bg-purple-500/20 blur-3xl"></div>
 
-                <div className="relative z-10 max-w-5xl mx-auto">
-                    <Button variant="ghost" onClick={() => router.back()} className="text-indigo-200 hover:text-white hover:bg-white/10 mb-8 -ml-4">
+                <div className="relative z-10">
+                    <Button variant="ghost" onClick={() => router.back()} className="text-indigo-200 hover:text-white hover:bg-white/10 mb-6 -ml-4">
                         <ArrowLeft className="h-4 w-4 mr-2" /> Back to Organizations
                     </Button>
 
                     <div className="flex items-center gap-6">
-                        <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-2xl">
+                        <div className="h-20 w-20 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-2xl">
                             <Building2 className="h-10 w-10 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-bold text-white tracking-tight mb-2">Create Organization</h1>
+                            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Create Organization</h1>
                             <p className="text-indigo-200 text-lg">Onboard a new educational institution to the platform.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="relative z-20 max-w-5xl mx-auto px-8 -mt-20">
+            <div className="relative z-20 space-y-8">
                 <form onSubmit={handleSubmit} className="space-y-8 animate-in slide-in-from-bottom-5 duration-500">
 
                     {/* Basic Info Card */}
