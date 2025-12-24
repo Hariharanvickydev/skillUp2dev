@@ -1163,7 +1163,7 @@ def get_exam_analytics(
             
             # Sort each student's attempts by created_at
             for user_id, user_attempts in student_attempts.items():
-                sorted_attempts = sorted(user_attempts, key=lambda x: x.created_at)
+                sorted_attempts = sorted(user_attempts, key=lambda x: x.started_at)
                 
                 # First attempt
                 if len(sorted_attempts) > 0 and i < len(sorted_attempts[0].answers):
