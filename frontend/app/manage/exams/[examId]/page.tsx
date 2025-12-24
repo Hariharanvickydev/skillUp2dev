@@ -80,6 +80,13 @@ export default function ExamDetailAnalyticsPage() {
             setAnalytics(analyticsRes.data);
             setAttempts(attemptsRes.data);
             setRemediationNotes(examRes.data.remediation_notes || "");
+
+            // Debug logging
+            console.log("Exam data:", examRes.data);
+            console.log("Exam type:", examRes.data.type);
+            console.log("Is practice?:", examRes.data.type === 'PRACTICE');
+            console.log("Analytics data:", analyticsRes.data);
+            console.log("Attempts data:", attemptsRes.data);
         } catch (error) {
             console.error("Error fetching exam data:", error);
             toast.error("Failed to load exam details");
