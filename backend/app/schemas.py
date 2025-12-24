@@ -191,6 +191,7 @@ class QuestionAnalytics(BaseModel):
 
 class ExamAnalytics(BaseModel):
     total_attempts: int
+    unique_students: int
     average_score: float
     high_score: int
     low_score: int

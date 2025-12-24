@@ -692,13 +692,18 @@ async def submit_practice_exam(
     # Increment attempt counter
     exam.num_attempts += 1
     
-    # Record attempt
+    # Record attempt with timestamps (UTC)
+    from datetime import datetime
+    now = datetime.utcnow()
+    
     attempt = models.ExamAttempt(
         exam_id=exam_id,
         user_id=current_user.id,
         answers=submission.answers,
         score=score,
-        passed=passed
+        passed=passed,
+        started_at=now,  # Set submission time
+        submitted_at=now  # Set submission time
     )
     
     db.add(attempt)
@@ -1097,9 +1102,14 @@ def get_exam_analytics(
     attempts = db.query(models.ExamAttempt).filter(models.ExamAttempt.exam_id == exam_id).all()
     total_attempts = len(attempts)
     
+    # Count unique students
+    unique_user_ids = set(a.user_id for a in attempts)
+    unique_students = len(unique_user_ids)
+    
     if total_attempts == 0:
         return {
             "total_attempts": 0,
+            "unique_students": 0,
             "average_score": 0,
             "high_score": 0,
             "low_score": 0,
@@ -1160,6 +1170,7 @@ def get_exam_analytics(
 
     return {
         "total_attempts": total_attempts,
+        "unique_students": unique_students,
         "average_score": round(avg_score, 1),
         "high_score": high_score,
         "low_score": low_score,
@@ -1196,20 +1207,309 @@ def get_admin_attempts(
     current_user: models.User = Depends(auth.require_admin)
 ):
     """
-    Get full list of student attempts for an exam with metadata.
+    Get unique student attempts for an exam (latest attempt per student).
     """
-    attempts = db.query(models.ExamAttempt, models.User.full_name)\
+    # Get all attempts with user info, ordered by submission time (prefer submitted_at, fallback to started_at)
+    from sqlalchemy import desc, nullslast, func
+    all_attempts = db.query(models.ExamAttempt, models.User.full_name)\
         .join(models.User, models.ExamAttempt.user_id == models.User.id)\
         .filter(models.ExamAttempt.exam_id == exam_id)\
-        .order_by(models.ExamAttempt.started_at.desc()).all()
+        .order_by(nullslast(desc(func.coalesce(models.ExamAttempt.submitted_at, models.ExamAttempt.started_at)))).all()
+    
+    # Group by user_id and keep only the latest attempt per student
+    seen_users = set()
+    unique_attempts = []
+    
+    for attempt in all_attempts:
+        user_id = attempt.ExamAttempt.user_id  # Get user_id from the ExamAttempt object
+        if user_id not in seen_users:
+            seen_users.add(user_id)
+            unique_attempts.append({
+                "id": attempt.ExamAttempt.id,
+                "student_name": attempt.full_name,
+                "score": attempt.ExamAttempt.score,
+                "passed": attempt.ExamAttempt.passed,
+                "created_at": attempt.ExamAttempt.started_at
+            })
+    
+    return unique_attempts
+
+@router.get("/attempts/{attempt_id}")
+def get_attempt_details(
+    attempt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    Get deep details of a specific exam attempt (answers, questions, results).
+    Accessible by student (owner) or teacher/admin.
+    """
+    from sqlalchemy.orm import joinedload
+    
+    attempt = db.query(models.ExamAttempt)\
+        .options(joinedload(models.ExamAttempt.user))\
+        .filter(models.ExamAttempt.id == attempt_id).first()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Attempt not found")
         
-    return [{
-        "id": a.ExamAttempt.id,
-        "student_name": a.full_name,
-        "score": a.ExamAttempt.score,
-        "passed": a.ExamAttempt.passed,
-        "created_at": a.ExamAttempt.started_at
-    } for a in attempts]
+    exam = db.query(models.Exam).filter(models.Exam.id == attempt.exam_id).first()
+    if not exam:
+        # Fallback if exam is deleted but attempt exists (rare but possible)
+        # We can still return score info but no question breakdown
+        return {
+            "id": attempt.id,
+            "student_name": attempt.user.full_name if attempt.user else "Unknown Student",
+            "exam_title": "Deleted Exam",
+            "score": attempt.score,
+            "passed": attempt.passed,
+            "started_at": attempt.started_at,
+            "submitted_at": attempt.submitted_at,
+            "results": [],
+            "analytics": {
+                "total_questions": 0,
+                "correct_count": 0,
+                "wrong_count": 0,
+                "accuracy": attempt.score or 0
+            }
+        }
+    
+    # Permission check: Owner or Admin/Teacher
+    allowed_admin_roles = [
+        models.UserRole.SUPER_ADMIN.value, 
+        models.UserRole.ORG_ADMIN.value, 
+        models.UserRole.DEPT_HEAD.value, 
+        models.UserRole.TEACHER.value
+    ]
+    if attempt.user_id != current_user.id and current_user.role not in allowed_admin_roles:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Combine questions with student's chosen answers
+    questions = exam.questions or []
+    answers = attempt.answers or {}
+    
+    print(f"\n{'='*60}")
+    print(f"DEBUG: Processing Attempt {attempt.id}")
+    print(f"DEBUG: Exam Questions Count: {len(questions)}")
+    print(f"DEBUG: Answers Type: {type(answers)}")
+    print(f"DEBUG: Questions Type: {type(questions)}")
+    
+    # Convert answers to dict if it's a list (legacy format)
+    if isinstance(answers, list):
+        print(f"DEBUG: Converting answers list to dict (length: {len(answers)})")
+        # If answers is a list, assume it's indexed by position [ans0, ans1, ans2...]
+        answers_dict = {str(i): answers[i] for i in range(len(answers))}
+        answers = answers_dict
+    
+    print(f"DEBUG: Student Answers Count: {len(answers)}")
+    if questions:
+        print(f"DEBUG: First Question: {questions[0]}")
+    if answers:
+        print(f"DEBUG: Answer Keys: {list(answers.keys())[:5]}")
+    print(f"{'='*60}\n")
+
+    results = []
+    correct_count = 0
+    wrong_count = 0
+
+    try:
+        # Ensure questions is a list
+        if isinstance(questions, str):
+            import json
+            questions = json.loads(questions)
+        
+        # Ensure answers is a dict
+        if isinstance(answers, str):
+            import json
+            answers = json.loads(answers)
+            # Check again if it's a list after parsing
+            if isinstance(answers, list):
+                answers = {str(i): answers[i] for i in range(len(answers))}
+
+        for idx, q in enumerate(questions):
+            if not isinstance(q, dict):
+                print(f"WARNING: Skipping malformed question at index {idx}: {q}")
+                continue
+                
+            # Robust ID matching - use index if ID is missing
+            raw_id = q.get('id')
+            if raw_id is None:
+                # Use index as fallback
+                raw_id = idx
+            
+            q_id_str = str(raw_id)
+            
+            # Try multiple matching strategies
+            chosen = answers.get(q_id_str)  # Try string key
+            if chosen is None and isinstance(raw_id, int):
+                chosen = answers.get(raw_id)  # Try int key
+            if chosen is None:
+                # Try index-based (for list-converted answers)
+                chosen = answers.get(str(idx))
+
+            # Get question text - handle both 'text' and 'question' fields
+            question_text = q.get('text') or q.get('question', 'Unknown Question')
+            
+            # Get correct answer - handle both 'correct' and 'correct_index' formats
+            correct_val = q.get('correct')
+            if correct_val is None and 'correct_index' in q:
+                # Convert index to letter (0->A, 1->B, etc.)
+                correct_idx = q.get('correct_index')
+                if correct_idx is not None:
+                    correct_val = chr(65 + int(correct_idx))  # 65 is ASCII 'A'
+            
+            # Convert student answer index to letter if needed
+            student_answer_display = chosen
+            if chosen is not None and isinstance(chosen, int):
+                student_answer_display = chr(65 + int(chosen))
+            
+            # Check correctness - compare indices directly
+            is_correct = False
+            if chosen is not None and 'correct_index' in q:
+                # Both are indices, compare directly
+                is_correct = int(chosen) == int(q.get('correct_index'))
+            elif chosen is not None and correct_val is not None:
+                # Compare as strings with normalization
+                is_correct = str(chosen).strip().lower() == str(correct_val).strip().lower()
+            
+            if is_correct:
+                correct_count += 1
+            else:
+                wrong_count += 1
+            
+            # Debug individual question matching
+            if idx < 3:
+                print(f"Q{idx+1}: ID={raw_id}, Chosen={chosen}, CorrectIdx={q.get('correct_index')}, Match={is_correct}")
+                
+            results.append({
+                "question": question_text,
+                "explanation": q.get('explanation', 'No explanation provided.'),
+                "options": q.get('options', []),
+                "correct_answer": correct_val,
+                "student_answer": student_answer_display,
+                "is_correct": is_correct,
+                "topic": q.get('topic', 'General')
+            })
+        
+        print(f"\nFINAL STATS: Total={len(questions)}, Correct={correct_count}, Wrong={wrong_count}\n")
+            
+    except Exception as e:
+        import traceback
+        print(f"ERROR processing attempt details: {e}")
+        traceback.print_exc()
+        return {
+            "id": attempt.id,
+            "student_name": attempt.user.full_name if attempt.user else "Unknown Student",
+            "exam_title": exam.title,
+            "teacher_notes": exam.remediation_notes,
+            "score": attempt.score,
+            "passed": attempt.passed,
+            "started_at": attempt.started_at,
+            "submitted_at": attempt.submitted_at,
+            "results": [],
+            "analytics_error": str(e),
+            "analytics": {
+                "total_questions": 0,
+                "correct_count": 0,
+                "wrong_count": 0,
+                "accuracy": attempt.score or 0
+            }
+        }
+    
+    return {
+        "id": attempt.id,
+        "student_name": attempt.user.full_name if attempt.user else "Unknown Student",
+        "exam_title": exam.title,
+        "teacher_notes": exam.remediation_notes, # Added teacher notes
+        "score": attempt.score,
+        "passed": attempt.passed,
+        "started_at": attempt.started_at,
+        "submitted_at": attempt.submitted_at,
+        "results": results,
+        "analytics": {
+            "total_questions": len(questions),
+            "correct_count": correct_count,
+            "wrong_count": wrong_count,
+            "accuracy": attempt.score
+        }
+    }
+
+@router.post("/attempts/{attempt_id}/remediation")
+def generate_student_remediation(
+    attempt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    Generate personalized AI remediation for a specific student attempt.
+    Analyzes wrong answers and provides a tailored study plan.
+    """
+    attempt = db.query(models.ExamAttempt).filter(models.ExamAttempt.id == attempt_id).first()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+        
+    exam = db.query(models.Exam).filter(models.Exam.id == attempt.exam_id).first()
+    if not exam:
+        return {"remediation": "This exam data is no longer available, so we cannot generate specific remediation."}
+    
+    # Permission check: Owner or Teacher/Admin
+    allowed_admin_roles = [
+        models.UserRole.SUPER_ADMIN.value, 
+        models.UserRole.ORG_ADMIN.value, 
+        models.UserRole.DEPT_HEAD.value, 
+        models.UserRole.TEACHER.value
+    ]
+    if attempt.user_id != current_user.id and current_user.role not in allowed_admin_roles:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Filter wrong answers
+    wrong_answers = []
+    questions = exam.questions or []
+    answers = attempt.answers or {}
+    
+    for q in questions:
+        q_id = str(q.get('id', ''))
+        chosen = answers.get(q_id)
+        if chosen != q.get('correct'):
+            wrong_answers.append({
+                "question": q.get('text'),
+                "correct_answer": q.get('correct'),
+                "student_answer": chosen,
+                "topic": q.get('topic', 'General'),
+                "explanation": q.get('explanation')
+            })
+
+    if not wrong_answers:
+        return {"remediation": "Perfect score! You have a solid grasp of all concepts covered in this exam."}
+
+    # Prepare prompt for AI
+    from app.ai import get_ai_model
+    ai_model = get_ai_model()
+    prompt = f"""
+    You are an expert academic tutor. Analyze the following student's incorrect answers in the exam "{exam.title}" 
+    and provide a personalized remediation plan.
+    
+    Student Performance: {attempt.score}% accurately.
+    Total Wrong: {len(wrong_answers)} questions.
+    
+    Incorrect Items:
+    {json.dumps(wrong_answers, indent=2)}
+    
+    Please provide:
+    1. **Conceptual Gap Analysis**: Identify the core patterns or topics the student struggles with.
+    2. **Tailored Study Plan**: 3-5 specific steps the student should take to improve.
+    3. **Key Advice**: A focused piece of advice for their next attempt.
+    
+    Format the response in Markdown. Keep it encouraging and executive in tone.
+    """
+    
+    try:
+        response = ai_model.generate_content(prompt)
+        return {"remediation": response.text}
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Failed to generate AI remediation")
+
 
 
 @router.get("/{exam_id}/student-analytics")
