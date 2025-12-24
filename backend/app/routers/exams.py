@@ -1256,13 +1256,13 @@ def get_admin_attempts(
     For practice exams (practice_mode=true): Returns all attempts grouped by student.
     For assessments (practice_mode=false): Returns latest attempt per student.
     """
-    from sqlalchemy import desc, nullslast, func
+    from sqlalchemy import asc, desc, nullslast, func
     
-    # Get all attempts with user info, ordered by submission time
+    # Get all attempts with user info, ordered by submission time ASC (Oldest first) for correct numbering
     all_attempts = db.query(models.ExamAttempt, models.User.full_name, models.User.id)\
         .join(models.User, models.ExamAttempt.user_id == models.User.id)\
         .filter(models.ExamAttempt.exam_id == exam_id)\
-        .order_by(nullslast(desc(func.coalesce(models.ExamAttempt.submitted_at, models.ExamAttempt.started_at)))).all()
+        .order_by(nullslast(asc(func.coalesce(models.ExamAttempt.submitted_at, models.ExamAttempt.started_at)))).all()
     
     if practice_mode:
         # For practice exams: Group all attempts by student
@@ -1294,8 +1294,9 @@ def get_admin_attempts(
         for group in student_groups.values():
             attempts = group["attempts"]
             if attempts:
-                first_score = attempts[-1]["score"]  # Last in list (oldest)
-                latest_score = attempts[0]["score"]   # First in list (newest)
+                # attempts list is ASC (Oldest -> Newest)
+                first_score = attempts[0]["score"]    # First in list (oldest)
+                latest_score = attempts[-1]["score"]  # Last in list (newest)
                 
                 # Determine improvement indicator
                 if latest_score > first_score + 10:
@@ -1309,6 +1310,9 @@ def get_admin_attempts(
                 group["first_score"] = first_score
                 group["latest_score"] = latest_score
                 group["total_attempts"] = len(attempts)
+                
+                # Reverse attempts for display so Newest is at top (Attempt #N ... Attempt #1)
+                group["attempts"].reverse()
                 
                 result.append(group)
         
