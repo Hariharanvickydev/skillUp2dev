@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+import { RoleGuard } from '@/components/RoleGuard';
+
 export default function StudentLayout({
     children,
 }: {
@@ -123,48 +125,51 @@ export default function StudentLayout({
     );
 
     return (
-        <div className="flex h-screen bg-slate-50">
-            {/* Desktop Sidebar */}
-            <aside
-                className={cn(
-                    "hidden lg:block h-full shadow-2xl z-20 transition-all duration-300 ease-in-out relative",
-                    isCollapsed ? "w-20" : "w-72"
-                )}
-            >
-                <SidebarContent collapsed={isCollapsed} />
-
-                {/* Toggle Button */}
-                <button
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute -right-3 top-9 bg-white text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-full p-1 shadow-md hover:shadow-lg transition-all z-50"
-                    title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                >
-                    {isCollapsed ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6" /></svg>
-                    ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6" /></svg>
+        <RoleGuard allowedRoles={['STUDENT', 'CONSUMER']}>
+            <div className="flex h-screen bg-slate-50">
+                {/* Desktop Sidebar */}
+                <aside
+                    className={cn(
+                        "hidden lg:block h-full shadow-2xl z-20 transition-all duration-300 ease-in-out relative",
+                        isCollapsed ? "w-20" : "w-72"
                     )}
-                </button>
-            </aside>
+                >
+                    <SidebarContent collapsed={isCollapsed} />
 
-            {/* Mobile Sheet */}
-            <Sheet>
-                <SheetTrigger asChild className="lg:hidden absolute top-4 left-4 z-50">
-                    <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-md">
-                        <Menu className="h-5 w-5" />
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 border-r-0 w-72">
-                    <SidebarContent collapsed={false} />
-                </SheetContent>
-            </Sheet>
+                    {/* Toggle Button */}
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="absolute -right-3 top-9 bg-white text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-full p-1 shadow-md hover:shadow-lg transition-all z-50"
+                        title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                    >
+                        {isCollapsed ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6" /></svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6" /></svg>
+                        )}
+                    </button>
+                </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto relative w-full transition-all duration-300">
-                <div className="h-full w-full">
-                    {children}
-                </div>
-            </main>
-        </div>
+                {/* Mobile Sheet */}
+                <Sheet>
+                    <SheetTrigger asChild className="lg:hidden absolute top-4 left-4 z-50">
+                        <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-md">
+                            <Menu className="h-5 w-5" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="p-0 border-r-0 w-72">
+                        <SidebarContent collapsed={false} />
+                    </SheetContent>
+                </Sheet>
+
+                {/* Main Content */}
+                <main className="flex-1 overflow-y-auto relative w-full transition-all duration-300">
+                    <div className="h-full w-full">
+                        {children}
+                    </div>
+                </main>
+            </div>
+        </RoleGuard>
     );
 }
+

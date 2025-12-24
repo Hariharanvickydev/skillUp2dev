@@ -181,6 +181,26 @@ class ExamCreate(ExamBase):
     course_id: Optional[UUID] = None
     questions: List[Dict[str, Any]]
 
+
+class QuestionAnalytics(BaseModel):
+    question_index: int
+    question_text: str
+    success_rate: float
+    option_distribution: Dict[str, int]
+    difficulty_label: str
+
+class ExamAnalytics(BaseModel):
+    total_attempts: int
+    average_score: float
+    high_score: int
+    low_score: int
+    pass_rate: float
+    score_distribution: Dict[str, int]
+    question_stats: List[QuestionAnalytics]
+
+class RemediationUpdate(BaseModel):
+    notes: str
+
 class Exam(ExamBase):
     id: UUID
     title: Optional[str] = None
@@ -191,6 +211,7 @@ class Exam(ExamBase):
     questions: List[Dict[str, Any]]
     is_published: bool
     num_attempts: int = 0
+    remediation_notes: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -370,6 +391,7 @@ class ExamForStudent(BaseModel):
     duration_minutes: int
     passing_score: int
     questions: List[Dict[str, Any]]  # Without correct_index
+    remediation_notes: Optional[str] = None
     created_at: datetime
 
 class ExamSubmitRequest(BaseModel):
@@ -380,6 +402,7 @@ class ExamResult(BaseModel):
     passed: bool
     correct_answers: List[int]
     explanations: List[str]
+    remediation_notes: Optional[str] = None
     attempt_id: UUID
 
 

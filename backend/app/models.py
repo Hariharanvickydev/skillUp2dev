@@ -267,6 +267,7 @@ class Exam(Base):
     locked_at = Column(DateTime, nullable=True)
     
     num_attempts = Column(Integer, default=0)
+    remediation_notes = Column(Text, nullable=True) # Teacher takeaways for the class
     
     created_at = Column(DateTime, server_default=func.now())
     

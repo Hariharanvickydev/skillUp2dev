@@ -713,6 +713,7 @@ async def submit_practice_exam(
         passed=passed,
         correct_answers=correct_answers,
         explanations=explanations,
+        remediation_notes=exam.remediation_notes,
         attempt_id=attempt.id
     )
 
@@ -1079,6 +1080,188 @@ def get_exam_details(
     return exam
 
 
+@router.get("/{exam_id}/analytics", response_model=schemas.ExamAnalytics)
+def get_exam_analytics(
+    exam_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """
+    Get deep diagnostics for an exam.
+    Includes success meters and distractor analysis.
+    """
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    attempts = db.query(models.ExamAttempt).filter(models.ExamAttempt.exam_id == exam_id).all()
+    total_attempts = len(attempts)
+    
+    if total_attempts == 0:
+        return {
+            "total_attempts": 0,
+            "average_score": 0,
+            "high_score": 0,
+            "low_score": 0,
+            "pass_rate": 0,
+            "score_distribution": {},
+            "question_stats": []
+        }
+
+    scores = [a.score for a in attempts]
+    avg_score = sum(scores) / total_attempts
+    high_score = max(scores)
+    low_score = min(scores)
+    pass_count = sum(1 for s in scores if s >= exam.passing_score)
+    pass_rate = (pass_count / total_attempts) * 100
+
+    # Score Distribution (Buckets)
+    dist = {"0-20": 0, "21-40": 0, "41-60": 0, "61-80": 0, "81-100": 0}
+    for s in scores:
+        if s <= 20: dist["0-20"] += 1
+        elif s <= 40: dist["21-40"] += 1
+        elif s <= 60: dist["41-60"] += 1
+        elif s <= 80: dist["61-80"] += 1
+        else: dist["81-100"] += 1
+
+    # Question-Level Diagnostics
+    q_stats = []
+    num_questions = len(exam.questions)
+    for i in range(num_questions):
+        correct_idx = exam.questions[i]['correct_index']
+        q_text = exam.questions[i]['question']
+        
+        correct_count = 0
+        options_dist = {"A": 0, "B": 0, "C": 0, "D": 0}
+        char_map = {0: "A", 1: "B", 2: "C", 3: "D"}
+        
+        for a in attempts:
+            if i < len(a.answers):
+                ans = a.answers[i]
+                if ans == correct_idx:
+                    correct_count += 1
+                if ans in char_map:
+                    options_dist[char_map[ans]] += 1
+        
+        success_rate = (correct_count / total_attempts) * 100
+        
+        # Difficulty labeling based on real success rate
+        if success_rate >= 80: difficulty = "Easy"
+        elif success_rate >= 50: difficulty = "Medium"
+        else: difficulty = "Hard"
+
+        q_stats.append({
+            "question_index": i,
+            "question_text": q_text,
+            "success_rate": round(success_rate, 1),
+            "option_distribution": options_dist,
+            "difficulty_label": difficulty
+        })
+
+    return {
+        "total_attempts": total_attempts,
+        "average_score": round(avg_score, 1),
+        "high_score": high_score,
+        "low_score": low_score,
+        "pass_rate": round(pass_rate, 1),
+        "score_distribution": dist,
+        "question_stats": q_stats
+    }
+
+
+@router.post("/{exam_id}/remediation")
+def update_remediation(
+    exam_id: UUID,
+    remediation: schemas.RemediationUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """
+    Update remediation notes (Teacher Takeaways) for an exam.
+    These notes become visible to students in their personalized intelligence.
+    """
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    exam.remediation_notes = remediation.notes
+    db.commit()
+    return {"message": "Remediation notes updated successfully"}
+
+
+@router.get("/{exam_id}/admin/attempts")
+def get_admin_attempts(
+    exam_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """
+    Get full list of student attempts for an exam with metadata.
+    """
+    attempts = db.query(models.ExamAttempt, models.User.full_name)\
+        .join(models.User, models.ExamAttempt.user_id == models.User.id)\
+        .filter(models.ExamAttempt.exam_id == exam_id)\
+        .order_by(models.ExamAttempt.started_at.desc()).all()
+        
+    return [{
+        "id": a.ExamAttempt.id,
+        "student_name": a.full_name,
+        "score": a.ExamAttempt.score,
+        "passed": a.ExamAttempt.passed,
+        "created_at": a.ExamAttempt.started_at
+    } for a in attempts]
+
+
+@router.get("/{exam_id}/student-analytics")
+def get_student_exam_analytics(
+    exam_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    Get anonymized relative performance data for a student.
+    Includes average score, percentile, and teacher remediation notes.
+    """
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    attempts = db.query(models.ExamAttempt).filter(models.ExamAttempt.exam_id == exam_id).all()
+    if not attempts:
+        return {
+            "average_score": 0,
+            "percentile": 0,
+            "total_students": 0,
+            "remediation_notes": exam.remediation_notes
+        }
+
+    all_scores = [a.score for a in attempts]
+    avg_score = sum(all_scores) / len(all_scores)
+    
+    # Get student's best score for this exam
+    user_attempts_scores = [a.score for a in attempts if a.user_id == current_user.id]
+    if not user_attempts_scores:
+         return {
+             "average_score": round(avg_score, 1),
+             "percentile": 0,
+             "total_students": len(set(a.user_id for a in attempts)),
+             "remediation_notes": exam.remediation_notes
+         }
+    
+    best_score = max(user_attempts_scores)
+    
+    # Calculate percentile (fraction of students who scored below him)
+    below = sum(1 for s in all_scores if s < best_score)
+    percentile = (below / len(all_scores)) * 100
+    
+    return {
+        "average_score": round(avg_score, 1),
+        "percentile": round(percentile, 1),
+        "total_students": len(set(a.user_id for a in attempts)),
+        "remediation_notes": exam.remediation_notes
+    }
+
+
 # ============================================================================
 # EXAM UPLOAD ENDPOINTS
 # ============================================================================
@@ -1323,6 +1506,7 @@ def get_course_exams(
             "questions": exam.questions,
             "max_attempts": getattr(exam, 'max_attempts', None),
             "owner_type": exam.owner_type,
+            "remediation_notes": exam.remediation_notes,
             "created_at": exam.created_at
         })
     

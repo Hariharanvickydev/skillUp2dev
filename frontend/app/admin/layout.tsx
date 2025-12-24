@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+import { RoleGuard } from '@/components/RoleGuard';
+
 export default function AdminLayout({
     children,
 }: {
@@ -99,33 +101,36 @@ export default function AdminLayout({
     );
 
     return (
-        <div className="flex h-screen bg-slate-50">
-            {/* Desktop Sidebar */}
-            <aside className="hidden lg:block w-72 h-full shadow-2xl z-20">
-                <SidebarContent />
-            </aside>
-
-            {/* Mobile Sheet */}
-            <Sheet>
-                <SheetTrigger asChild className="lg:hidden absolute top-4 left-4 z-50">
-                    <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-md">
-                        <Menu className="h-5 w-5" />
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 border-r-0 w-72">
+        <RoleGuard allowedRoles={['SUPER_ADMIN']}>
+            <div className="flex h-screen bg-slate-50">
+                {/* Desktop Sidebar */}
+                <aside className="hidden lg:block w-72 h-full shadow-2xl z-20">
                     <SidebarContent />
-                </SheetContent>
-            </Sheet>
+                </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto relative w-full">
-                {/* Header Decoration */}
-                {/* <div className="absolute top-0 left-0 w-full h-64 bg-slate-900/5 -z-10 pointer-events-none"></div> */}
+                {/* Mobile Sheet */}
+                <Sheet>
+                    <SheetTrigger asChild className="lg:hidden absolute top-4 left-4 z-50">
+                        <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-md">
+                            <Menu className="h-5 w-5" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="p-0 border-r-0 w-72">
+                        <SidebarContent />
+                    </SheetContent>
+                </Sheet>
 
-                <div className="h-full w-full">
-                    {children}
-                </div>
-            </main>
-        </div>
+                {/* Main Content */}
+                <main className="flex-1 overflow-y-auto relative w-full">
+                    {/* Header Decoration */}
+                    {/* <div className="absolute top-0 left-0 w-full h-64 bg-slate-900/5 -z-10 pointer-events-none"></div> */}
+
+                    <div className="h-full w-full">
+                        {children}
+                    </div>
+                </main>
+            </div>
+        </RoleGuard>
     );
 }
+

@@ -6,8 +6,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Loader2, Target, TrendingUp, Users, MessageSquare, Lightbulb } from 'lucide-react'
 import { toast } from "sonner"
+import api from '@/lib/api'
 
 export default function ExamPage() {
     const params = useParams()
@@ -24,6 +25,7 @@ export default function ExamPage() {
     const [result, setResult] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
+    const [studentAnalytics, setStudentAnalytics] = useState<any>(null)
 
     useEffect(() => {
         if (examId) {
@@ -65,12 +67,20 @@ export default function ExamPage() {
                     setResult({
                         score: bestAttempt.score,
                         passed: bestAttempt.passed,
-                        correct_answers: bestAttempt.answers || [], // Assuming backend returns this, otherwise we might need a richer attempt endpoint
-                        explanations: new Array(examResponseData.questions.length).fill("Check detailed review"), // Placeholder if not in attempt
+                        correct_answers: bestAttempt.answers || [],
+                        explanations: new Array(examResponseData.questions.length).fill("Check detailed review"),
                         attempt_id: bestAttempt.id
                     })
                     setAnswers(bestAttempt.answers || new Array(examResponseData.questions.length).fill(-1))
                     setSubmitted(true)
+
+                    // Fetch student analytics
+                    try {
+                        const analyticsRes = await api.get(`/exams/${examId}/student-analytics`)
+                        setStudentAnalytics(analyticsRes.data)
+                    } catch (e) {
+                        console.error('Failed to fetch student analytics', e)
+                    }
                 }
             } else {
                 setAnswers(new Array(examResponseData.questions.length).fill(-1))
@@ -110,6 +120,14 @@ export default function ExamPage() {
             const data = await response.json()
             setResult(data)
             setSubmitted(true)
+
+            // Fetch personalized analytics immediately
+            try {
+                const analyticsRes = await api.get(`/exams/${examId}/student-analytics`)
+                setStudentAnalytics(analyticsRes.data)
+            } catch (e) {
+                console.error('Failed to fetch student analytics', e)
+            }
         } catch (error) {
             console.error('Error submitting exam:', error)
             toast.error('Failed to submit exam')
@@ -257,6 +275,48 @@ export default function ExamPage() {
                                 )}
                             </div>
                         </Card>
+
+                        {/* Personalized Intelligence Card */}
+                        {studentAnalytics && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in zoom-in-95 duration-700 delay-150">
+                                <Card className="p-6 border-indigo-100 bg-white hover:bg-indigo-50/10 transition-colors shadow-sm">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 bg-indigo-50 rounded-lg">
+                                            <Target className="h-4 w-4 text-indigo-600" />
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Class Avg</span>
+                                    </div>
+                                    <div className="text-3xl font-black text-indigo-700">{studentAnalytics.average_score}%</div>
+                                    <p className="text-xs text-slate-400 mt-1 font-medium">Average across {studentAnalytics.total_students} peers</p>
+                                </Card>
+
+                                <Card className="p-6 border-emerald-100 bg-white hover:bg-emerald-50/10 transition-colors shadow-sm">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 bg-emerald-50 rounded-lg">
+                                            <TrendingUp className="h-4 w-4 text-emerald-600" />
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Rank Insight</span>
+                                    </div>
+                                    <div className="text-3xl font-black text-emerald-700">Top {100 - studentAnalytics.percentile}%</div>
+                                    <p className="text-xs text-slate-400 mt-1 font-medium">Better than {studentAnalytics.percentile}% of class</p>
+                                </Card>
+
+                                <Card className="p-6 border-amber-100 bg-amber-50/30 shadow-sm relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-1 opacity-10">
+                                        <MessageSquare className="h-12 w-12 text-amber-600" />
+                                    </div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 bg-amber-100 rounded-lg">
+                                            <Lightbulb className="h-4 w-4 text-amber-700" />
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Remediation</span>
+                                    </div>
+                                    <p className="text-sm text-slate-700 line-clamp-3 font-medium leading-relaxed italic">
+                                        {studentAnalytics.remediation_notes || "Your teacher will provide guidance notes here soon based on your results."}
+                                    </p>
+                                </Card>
+                            </div>
+                        )}
 
                         {/* Detailed Results */}
                         <div className="space-y-4">
