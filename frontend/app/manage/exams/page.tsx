@@ -511,6 +511,7 @@ export default function OrgExamsPage() {
                                 <CardContent className="p-7">
                                     <div className="flex justify-between items-start mb-5">
                                         <div className="flex flex-wrap gap-2">
+                                            {getExamTypeBadge(exam)}
                                             <Badge className={cn("rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border shadow-none", getDifficultyColor(exam.difficulty))}>
                                                 {exam.difficulty}
                                             </Badge>
