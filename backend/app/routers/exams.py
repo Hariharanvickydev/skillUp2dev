@@ -1137,6 +1137,8 @@ def get_exam_analytics(
     # Question-Level Diagnostics
     q_stats = []
     num_questions = len(exam.questions)
+    is_practice = exam.type == "PRACTICE"
+    
     for i in range(num_questions):
         correct_idx = exam.questions[i]['correct_index']
         q_text = exam.questions[i]['question']
@@ -1144,6 +1146,36 @@ def get_exam_analytics(
         correct_count = 0
         options_dist = {"A": 0, "B": 0, "C": 0, "D": 0}
         char_map = {0: "A", 1: "B", 2: "C", 3: "D"}
+        
+        # For practice exams, track first vs latest attempts
+        first_attempt_correct = 0
+        first_attempt_total = 0
+        latest_attempt_correct = 0
+        latest_attempt_total = 0
+        
+        if is_practice:
+            # Group attempts by student
+            student_attempts = {}
+            for a in attempts:
+                if a.user_id not in student_attempts:
+                    student_attempts[a.user_id] = []
+                student_attempts[a.user_id].append(a)
+            
+            # Sort each student's attempts by created_at
+            for user_id, user_attempts in student_attempts.items():
+                sorted_attempts = sorted(user_attempts, key=lambda x: x.created_at)
+                
+                # First attempt
+                if len(sorted_attempts) > 0 and i < len(sorted_attempts[0].answers):
+                    first_attempt_total += 1
+                    if sorted_attempts[0].answers[i] == correct_idx:
+                        first_attempt_correct += 1
+                
+                # Latest attempt
+                if len(sorted_attempts) > 0 and i < len(sorted_attempts[-1].answers):
+                    latest_attempt_total += 1
+                    if sorted_attempts[-1].answers[i] == correct_idx:
+                        latest_attempt_correct += 1
         
         for a in attempts:
             if i < len(a.answers):
@@ -1160,13 +1192,25 @@ def get_exam_analytics(
         elif success_rate >= 50: difficulty = "Medium"
         else: difficulty = "Hard"
 
-        q_stats.append({
+        q_stat = {
             "question_index": i,
             "question_text": q_text,
             "success_rate": round(success_rate, 1),
             "option_distribution": options_dist,
             "difficulty_label": difficulty
-        })
+        }
+        
+        # Add practice-specific metrics
+        if is_practice and first_attempt_total > 0 and latest_attempt_total > 0:
+            first_rate = (first_attempt_correct / first_attempt_total) * 100
+            latest_rate = (latest_attempt_correct / latest_attempt_total) * 100
+            improvement = latest_rate - first_rate
+            
+            q_stat["first_attempt_success_rate"] = round(first_rate, 1)
+            q_stat["latest_attempt_success_rate"] = round(latest_rate, 1)
+            q_stat["improvement_percentage"] = round(improvement, 1)
+        
+        q_stats.append(q_stat)
 
     return {
         "total_attempts": total_attempts,
