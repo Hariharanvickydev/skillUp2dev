@@ -199,6 +199,44 @@ class ExamAnalytics(BaseModel):
     score_distribution: Dict[str, int]
     question_stats: List[QuestionAnalytics]
 
+# Practice Exam Analytics Schemas
+class QuestionMasteryStats(BaseModel):
+    question_index: int
+    question_text: str
+    initial_success_rate: float  # Success rate on first attempts
+    final_success_rate: float    # Success rate on latest attempts
+    improvement: float           # Percentage point improvement
+
+class LearningCurvePoint(BaseModel):
+    attempt_number: int
+    average_score: float
+    attempt_count: int  # Number of attempts at this position
+
+class AttemptSummary(BaseModel):
+    id: UUID
+    attempt_number: int
+    score: int
+    passed: bool
+    submitted_at: Optional[datetime]
+
+class StudentAttemptGroup(BaseModel):
+    student_id: UUID
+    student_name: str
+    attempts: List[AttemptSummary]
+    improvement_indicator: str  # "improving", "declining", "stable"
+    first_score: int
+    latest_score: int
+    total_attempts: int
+
+class PracticeAnalytics(BaseModel):
+    total_attempts: int
+    unique_students: int
+    avg_attempts_per_student: float
+    improvement_rate: float  # % improvement from first to latest
+    learning_curve: List[LearningCurvePoint]
+    mastery_stats: List[QuestionMasteryStats]
+    score_distribution: Dict[str, int]
+
 class RemediationUpdate(BaseModel):
     notes: str
 

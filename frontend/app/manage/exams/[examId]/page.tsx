@@ -41,6 +41,7 @@ import {
     TableRow
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import PracticeAnalyticsView from "./components/PracticeAnalyticsView";
 
 // Simple Skeleton fallback
 function Skeleton({ className }: { className?: string }) {
@@ -213,162 +214,170 @@ export default function ExamDetailAnalyticsPage() {
 
                     {/* Overview Tab */}
                     <TabsContent value="overview" className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        {/* KPI Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            <MetricCard
-                                title="Average Accuracy"
-                                value={`${analytics?.average_score || 0}%`}
-                                icon={Target}
-                                color="indigo"
-                                description="Class-wide performance mean"
-                                trend={analytics?.average_score > 70 ? "up" : "down"}
-                            />
-                            <MetricCard
-                                title="Success Rate"
-                                value={`${analytics?.pass_rate || 0}%`}
-                                icon={CheckCircle2}
-                                color="emerald"
-                                description="Qualified attempt percentage"
-                                trend={analytics?.pass_rate > 60 ? "up" : "down"}
-                            />
-                            <MetricCard
-                                title="Participation"
-                                value={analytics?.unique_students || 0}
-                                icon={Users}
-                                color="amber"
-                                description="Unique students who attempted"
-                            />
-                            <MetricCard
-                                title="Complexity"
-                                value={exam.difficulty}
-                                icon={Brain}
-                                color="purple"
-                                description="Inherent problem level"
-                            />
-                        </div>
+                        {exam.is_practice ? (
+                            /* Practice Exam Analytics */
+                            <PracticeAnalyticsView examId={examId} />
+                        ) : (
+                            /* Assessment Exam Analytics (existing view) */
+                            <>
+                                {/* KPI Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                    <MetricCard
+                                        title="Average Accuracy"
+                                        value={`${analytics?.average_score || 0}%`}
+                                        icon={Target}
+                                        color="indigo"
+                                        description="Class-wide performance mean"
+                                        trend={analytics?.average_score > 70 ? "up" : "down"}
+                                    />
+                                    <MetricCard
+                                        title="Success Rate"
+                                        value={`${analytics?.pass_rate || 0}%`}
+                                        icon={CheckCircle2}
+                                        color="emerald"
+                                        description="Qualified attempt percentage"
+                                        trend={analytics?.pass_rate > 60 ? "up" : "down"}
+                                    />
+                                    <MetricCard
+                                        title="Participation"
+                                        value={analytics?.unique_students || 0}
+                                        icon={Users}
+                                        color="amber"
+                                        description="Unique students who attempted"
+                                    />
+                                    <MetricCard
+                                        title="Complexity"
+                                        value={exam.difficulty}
+                                        icon={Brain}
+                                        color="purple"
+                                        description="Inherent problem level"
+                                    />
+                                </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                            {/* Score Distribution Chart */}
-                            <Card className="lg:col-span-2 rounded-[2rem] border-slate-200/60 shadow-xl shadow-slate-200/30 overflow-hidden bg-white">
-                                <CardHeader className="p-8 border-b border-slate-50">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <CardTitle className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                                                <div className="p-2 bg-indigo-50 rounded-lg">
-                                                    <BarChart3 className="h-5 w-5 text-indigo-600" />
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                                    {/* Score Distribution Chart */}
+                                    <Card className="lg:col-span-2 rounded-[2rem] border-slate-200/60 shadow-xl shadow-slate-200/30 overflow-hidden bg-white">
+                                        <CardHeader className="p-8 border-b border-slate-50">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <CardTitle className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                                                        <div className="p-2 bg-indigo-50 rounded-lg">
+                                                            <BarChart3 className="h-5 w-5 text-indigo-600" />
+                                                        </div>
+                                                        Score Spread
+                                                    </CardTitle>
+                                                    <CardDescription className="text-slate-400 font-medium">Class-wide performance distribution</CardDescription>
                                                 </div>
-                                                Score Spread
-                                            </CardTitle>
-                                            <CardDescription className="text-slate-400 font-medium">Class-wide performance distribution</CardDescription>
-                                        </div>
-                                        <div className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 hidden sm:block">
-                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">Peak Range:</span>
-                                            <span className="text-sm font-black text-indigo-600">
-                                                {[...scoreDistData].sort((a: any, b: any) => (b.count || 0) - (a.count || 0))[0]?.range || "N/A"}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-8 h-[400px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={scoreDistData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis
-                                                dataKey="range"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                                                dy={10}
-                                            />
-                                            <YAxis
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                                            />
-                                            <Tooltip
-                                                cursor={{ fill: '#f8fafc' }}
-                                                content={({ active, payload }: any) => {
-                                                    if (active && payload && payload.length) {
-                                                        return (
-                                                            <div className="bg-slate-900 text-white p-3 rounded-xl shadow-2xl border-0">
-                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{payload[0].payload.range}</p>
-                                                                <p className="text-lg font-black">{payload[0].value} Students</p>
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return null;
-                                                }}
-                                            />
-                                            <Bar dataKey="count" radius={[12, 12, 0, 0]} barSize={40}>
-                                                {scoreDistData.map((entry, index) => (
-                                                    <Cell
-                                                        key={`cell-${index}`}
-                                                        fill={index % 2 === 0 ? '#4f46e5' : '#6366f1'}
-                                                        fillOpacity={0.8 + (index / scoreDistData.length) * 0.2}
+                                                <div className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 hidden sm:block">
+                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">Peak Range:</span>
+                                                    <span className="text-sm font-black text-indigo-600">
+                                                        {[...scoreDistData].sort((a: any, b: any) => (b.count || 0) - (a.count || 0))[0]?.range || "N/A"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="p-8 h-[400px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={scoreDistData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                    <XAxis
+                                                        dataKey="range"
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                                                        dy={10}
                                                     />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
+                                                    <YAxis
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                                                    />
+                                                    <Tooltip
+                                                        cursor={{ fill: '#f8fafc' }}
+                                                        content={({ active, payload }: any) => {
+                                                            if (active && payload && payload.length) {
+                                                                return (
+                                                                    <div className="bg-slate-900 text-white p-3 rounded-xl shadow-2xl border-0">
+                                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{payload[0].payload.range}</p>
+                                                                        <p className="text-lg font-black">{payload[0].value} Students</p>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        }}
+                                                    />
+                                                    <Bar dataKey="count" radius={[12, 12, 0, 0]} barSize={40}>
+                                                        {scoreDistData.map((entry, index) => (
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={index % 2 === 0 ? '#4f46e5' : '#6366f1'}
+                                                                fillOpacity={0.8 + (index / scoreDistData.length) * 0.2}
+                                                            />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </CardContent>
+                                    </Card>
 
-                            {/* Performance Summary */}
-                            <Card className="rounded-[2rem] border-0 shadow-2xl shadow-indigo-900/10 bg-gradient-to-br from-indigo-700 to-indigo-900 text-white overflow-hidden relative">
-                                <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] rounded-full -mr-20 -mt-20 shrink-0" />
-                                <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/20 blur-[60px] rounded-full -ml-10 -mb-10" />
+                                    {/* Performance Summary */}
+                                    <Card className="rounded-[2rem] border-0 shadow-2xl shadow-indigo-900/10 bg-gradient-to-br from-indigo-700 to-indigo-900 text-white overflow-hidden relative">
+                                        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] rounded-full -mr-20 -mt-20 shrink-0" />
+                                        <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/20 blur-[60px] rounded-full -ml-10 -mb-10" />
 
-                                <CardHeader className="relative z-10 p-8">
-                                    <div className="h-14 w-14 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center mb-4">
-                                        <Award className="h-7 w-7 text-indigo-100" />
-                                    </div>
-                                    <CardTitle className="text-2xl font-black">
-                                        Performance<br />Insights
-                                    </CardTitle>
-                                    <CardDescription className="text-indigo-200">AI-driven summary</CardDescription>
-                                </CardHeader>
-                                <CardContent className="relative z-10 space-y-8 p-8 pt-0">
-                                    <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 ring-1 ring-white/5">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em]">Peak Performer</span>
-                                            <TrendingUp className="h-3 w-3 text-indigo-300" />
-                                        </div>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-5xl font-black">{analytics?.high_score || 0}</span>
-                                            <span className="text-xl font-bold text-indigo-300">%</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-5">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-xs font-bold px-1">
-                                                <span className="text-indigo-200 uppercase tracking-widest">Base Score</span>
-                                                <span className="bg-white/10 px-2 py-0.5 rounded-lg text-white">{analytics?.low_score || 0}%</span>
+                                        <CardHeader className="relative z-10 p-8">
+                                            <div className="h-14 w-14 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center mb-4">
+                                                <Award className="h-7 w-7 text-indigo-100" />
                                             </div>
-                                            <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                                                <div className="h-full bg-indigo-300/50 rounded-full" style={{ width: `${analytics?.low_score}%` }} />
+                                            <CardTitle className="text-2xl font-black">
+                                                Performance<br />Insights
+                                            </CardTitle>
+                                            <CardDescription className="text-indigo-200">AI-driven summary</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="relative z-10 space-y-8 p-8 pt-0">
+                                            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 ring-1 ring-white/5">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em]">Peak Performer</span>
+                                                    <TrendingUp className="h-3 w-3 text-indigo-300" />
+                                                </div>
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className="text-5xl font-black">{analytics?.high_score || 0}</span>
+                                                    <span className="text-xl font-bold text-indigo-300">%</span>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-xs font-bold px-1">
-                                                <span className="text-indigo-200 uppercase tracking-widest">Pass Quota</span>
-                                                <span className="bg-white/10 px-2 py-0.5 rounded-lg text-white">{analytics?.pass_rate}%</span>
-                                            </div>
-                                            <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                                                <div className="h-full bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] rounded-full" style={{ width: `${analytics?.pass_rate}%` }} />
-                                            </div>
-                                        </div>
-                                    </div>
+                                            <div className="space-y-5">
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between text-xs font-bold px-1">
+                                                        <span className="text-indigo-200 uppercase tracking-widest">Base Score</span>
+                                                        <span className="bg-white/10 px-2 py-0.5 rounded-lg text-white">{analytics?.low_score || 0}%</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-indigo-300/50 rounded-full" style={{ width: `${analytics?.low_score}%` }} />
+                                                    </div>
+                                                </div>
 
-                                    <div className="pt-4">
-                                        <Button variant="secondary" className="w-full h-14 rounded-2xl font-black text-indigo-900 bg-white hover:bg-indigo-50 transition-all border-0 shadow-xl">
-                                            Detailed Group Report
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between text-xs font-bold px-1">
+                                                        <span className="text-indigo-200 uppercase tracking-widest">Pass Quota</span>
+                                                        <span className="bg-white/10 px-2 py-0.5 rounded-lg text-white">{analytics?.pass_rate}%</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] rounded-full" style={{ width: `${analytics?.pass_rate}%` }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-4">
+                                                <Button variant="secondary" className="w-full h-14 rounded-2xl font-black text-indigo-900 bg-white hover:bg-indigo-50 transition-all border-0 shadow-xl">
+                                                    Detailed Group Report
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </>
+                        )}
                     </TabsContent>
 
                     {/* Diagnostics Tab */}
