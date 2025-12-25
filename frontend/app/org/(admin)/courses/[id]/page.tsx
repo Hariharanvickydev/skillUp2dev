@@ -107,6 +107,20 @@ export default function OrgCourseEditorPage() {
     const [qLoading, setQLoading] = useState(false)
     const [showPreviewAnswers, setShowPreviewAnswers] = useState(false)
     const [editingQuestion, setEditingQuestion] = useState<any>(null)
+    const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false)
+    const [isDeleteQuestionDialogOpen, setIsDeleteQuestionDialogOpen] = useState(false)
+    const [questionToDelete, setQuestionToDelete] = useState<any>(null)
+    const [newQuestionData, setNewQuestionData] = useState({
+        title: "",
+        content: {
+            type: "MCQ",
+            question: "",
+            options: ["", "", "", ""],
+            answer: "",
+            explanation: "",
+            marks: 2
+        }
+    })
 
     const fetchCourse = async () => {
         try {
@@ -327,6 +341,68 @@ export default function OrgCourseEditorPage() {
             fetchQuestions()
         } catch (e) {
             toast.error("Failed to update status")
+        }
+    }
+
+    const handleCreateQuestion = async () => {
+        if (!newQuestionData.title || !newQuestionData.content.question) {
+            toast.error("Please fill in title and question")
+            return
+        }
+        try {
+            await createImportantQuestion(params.id as string, {
+                title: newQuestionData.title,
+                content: newQuestionData.content,
+                is_public: false,
+                module_id: null
+            })
+            toast.success("Question created successfully")
+            setIsQuestionDialogOpen(false)
+            setNewQuestionData({
+                title: "",
+                content: {
+                    type: "MCQ",
+                    question: "",
+                    options: ["", "", "", ""],
+                    answer: "",
+                    explanation: "",
+                    marks: 2
+                }
+            })
+            fetchQuestions()
+        } catch (e) {
+            toast.error("Failed to create question")
+        }
+    }
+
+    const handleEditQuestion = async () => {
+        if (!editingQuestion) return
+        try {
+            await updateImportantQuestion(params.id as string, editingQuestion.id, {
+                title: editingQuestion.title,
+                content: editingQuestion.content,
+                is_public: editingQuestion.is_public,
+                module_id: editingQuestion.module_id
+            })
+            toast.success("Question updated successfully")
+            setIsQuestionDialogOpen(false)
+            setEditingQuestion(null)
+            fetchQuestions()
+        } catch (e) {
+            toast.error("Failed to update question")
+        }
+    }
+
+    const handleDeleteQuestion = async () => {
+        if (!questionToDelete) return
+        try {
+            await deleteImportantQuestion(params.id as string, questionToDelete.id)
+            toast.success("Question deleted successfully")
+            setIsDeleteQuestionDialogOpen(false)
+            setQuestionToDelete(null)
+            fetchQuestions()
+        } catch (e) {
+            toast.error("Failed to delete question")
         }
     }
 
@@ -816,6 +892,19 @@ export default function OrgCourseEditorPage() {
                                         {showPreviewAnswers ? "Visible" : "Hidden"}
                                     </Button>
                                 </div>
+                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                    <Button
+                                        onClick={() => {
+                                            setEditingQuestion(null)
+                                            setIsQuestionDialogOpen(true)
+                                        }}
+                                        size="sm"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add Question
+                                    </Button>
+                                )}
                                 {course.parent_course_id && (
                                     <Button
                                         onClick={() => handleCheckSync('QUESTION')}
@@ -914,6 +1003,26 @@ export default function OrgCourseEditorPage() {
                                                                                 {(user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && q.status === 'PUBLISHED' && (
                                                                                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handlePublishToggle(q)} title={q.is_public ? "Unpublish" : "Publish"}>
                                                                                         {q.is_public ? <EyeOff className="h-3.5 w-3.5 text-slate-400" /> : <Eye className="h-3.5 w-3.5 text-emerald-600" />}
+                                                                                    </Button>
+                                                                                )}
+
+                                                                                {/* Edit Button */}
+                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                                                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
+                                                                                        setEditingQuestion(q)
+                                                                                        setIsQuestionDialogOpen(true)
+                                                                                    }} title="Edit Question">
+                                                                                        <Edit className="h-3.5 w-3.5 text-slate-600" />
+                                                                                    </Button>
+                                                                                )}
+
+                                                                                {/* Delete Button */}
+                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                                                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
+                                                                                        setQuestionToDelete(q)
+                                                                                        setIsDeleteQuestionDialogOpen(true)
+                                                                                    }} title="Delete Question">
+                                                                                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
                                                                                     </Button>
                                                                                 )}
                                                                             </div>
@@ -1142,6 +1251,144 @@ export default function OrgCourseEditorPage() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleRegenerateTopics} className="bg-red-600 hover:bg-red-700">Yes, Regenerate</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Question Create/Edit Dialog */}
+            <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>{editingQuestion ? "Edit Question" : "Create New Question"}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-sm font-medium">Title</label>
+                            <Input
+                                value={editingQuestion ? editingQuestion.title : newQuestionData.title}
+                                onChange={(e) => editingQuestion
+                                    ? setEditingQuestion({ ...editingQuestion, title: e.target.value })
+                                    : setNewQuestionData({ ...newQuestionData, title: e.target.value })
+                                }
+                                placeholder="Question title"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium">Question Type</label>
+                            <select
+                                className="w-full p-2 border rounded"
+                                value={editingQuestion ? editingQuestion.content.type : newQuestionData.content.type}
+                                onChange={(e) => editingQuestion
+                                    ? setEditingQuestion({ ...editingQuestion, content: { ...editingQuestion.content, type: e.target.value } })
+                                    : setNewQuestionData({ ...newQuestionData, content: { ...newQuestionData.content, type: e.target.value } })
+                                }
+                            >
+                                <option value="MCQ">Multiple Choice</option>
+                                <option value="TRUE_FALSE">True/False</option>
+                                <option value="SHORT_ANSWER">Short Answer</option>
+                                <option value="LONG_ANSWER">Long Answer</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium">Question</label>
+                            <Textarea
+                                value={editingQuestion ? editingQuestion.content.question : newQuestionData.content.question}
+                                onChange={(e) => editingQuestion
+                                    ? setEditingQuestion({ ...editingQuestion, content: { ...editingQuestion.content, question: e.target.value } })
+                                    : setNewQuestionData({ ...newQuestionData, content: { ...newQuestionData.content, question: e.target.value } })
+                                }
+                                placeholder="Enter the question"
+                                rows={3}
+                            />
+                        </div>
+
+                        {((editingQuestion && editingQuestion.content.type === 'MCQ') || (!editingQuestion && newQuestionData.content.type === 'MCQ')) && (
+                            <div>
+                                <label className="text-sm font-medium">Options</label>
+                                {[0, 1, 2, 3].map((idx) => (
+                                    <Input
+                                        key={idx}
+                                        value={editingQuestion ? editingQuestion.content.options[idx] : newQuestionData.content.options[idx]}
+                                        onChange={(e) => {
+                                            const newOptions = editingQuestion ? [...editingQuestion.content.options] : [...newQuestionData.content.options]
+                                            newOptions[idx] = e.target.value
+                                            editingQuestion
+                                                ? setEditingQuestion({ ...editingQuestion, content: { ...editingQuestion.content, options: newOptions } })
+                                                : setNewQuestionData({ ...newQuestionData, content: { ...newQuestionData.content, options: newOptions } })
+                                        }}
+                                        placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                                        className="mt-2"
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="text-sm font-medium">Answer</label>
+                            <Input
+                                value={editingQuestion ? editingQuestion.content.answer : newQuestionData.content.answer}
+                                onChange={(e) => editingQuestion
+                                    ? setEditingQuestion({ ...editingQuestion, content: { ...editingQuestion.content, answer: e.target.value } })
+                                    : setNewQuestionData({ ...newQuestionData, content: { ...newQuestionData.content, answer: e.target.value } })
+                                }
+                                placeholder="Correct answer"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium">Explanation (Optional)</label>
+                            <Textarea
+                                value={editingQuestion ? editingQuestion.content.explanation : newQuestionData.content.explanation}
+                                onChange={(e) => editingQuestion
+                                    ? setEditingQuestion({ ...editingQuestion, content: { ...editingQuestion.content, explanation: e.target.value } })
+                                    : setNewQuestionData({ ...newQuestionData, content: { ...newQuestionData.content, explanation: e.target.value } })
+                                }
+                                placeholder="Explanation for the answer"
+                                rows={2}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium">Marks</label>
+                            <Input
+                                type="number"
+                                value={editingQuestion ? editingQuestion.content.marks : newQuestionData.content.marks}
+                                onChange={(e) => editingQuestion
+                                    ? setEditingQuestion({ ...editingQuestion, content: { ...editingQuestion.content, marks: parseInt(e.target.value) } })
+                                    : setNewQuestionData({ ...newQuestionData, content: { ...newQuestionData.content, marks: parseInt(e.target.value) } })
+                                }
+                                min={1}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setIsQuestionDialogOpen(false)
+                            setEditingQuestion(null)
+                        }}>Cancel</Button>
+                        <Button onClick={editingQuestion ? handleEditQuestion : handleCreateQuestion}>
+                            {editingQuestion ? "Update" : "Create"} Question
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Question Confirmation */}
+            <AlertDialog open={isDeleteQuestionDialogOpen} onOpenChange={setIsDeleteQuestionDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Question?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete "{questionToDelete?.title}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteQuestion} className="bg-red-600 hover:bg-red-700">
+                            Delete
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
