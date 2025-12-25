@@ -404,19 +404,17 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                     </SelectContent>
                 </Select>
 
-                {/* Department Filter */}
-                <Select value={filters.department} onValueChange={(v) => setFilters({ ...filters, department: v })}>
-                    <SelectTrigger className="w-[180px] h-10 rounded-xl border-slate-200">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Departments</SelectItem>
-                        {Array.from(new Set(users.map(u => getDepartmentPath(u)))).sort().map(dept => (
-                            <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
+                {/* Department Filter - Hierarchical */}
+                <div className="relative">
+                    <OrgGroupSelector
+                        orgId={orgId}
+                        value={filters.department}
+                        onChange={(id, name) => setFilters({ ...filters, department: id || 'all' })}
+                        labels={{ level1: level1Label, level2: level2Label }}
+                        role={role}
+                        className="h-10 rounded-xl border-slate-200 min-w-[180px]"
+                    />
+                </div>
                 {/* Last Login Filter */}
                 <Select value={filters.lastLogin} onValueChange={(v) => setFilters({ ...filters, lastLogin: v })}>
                     <SelectTrigger className="w-[160px] h-10 rounded-xl border-slate-200">
@@ -465,10 +463,9 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                                 if (filters.status === 'active' && !user.is_active) return false;
                                 if (filters.status === 'inactive' && user.is_active) return false;
 
-                                // Department filter
+                                // Department filter (by group ID)
                                 if (filters.department !== 'all') {
-                                    const userDept = getDepartmentPath(user);
-                                    if (userDept !== filters.department) return false;
+                                    if (user.org_group_id !== filters.department) return false;
                                 }
 
                                 // Last Login filter
