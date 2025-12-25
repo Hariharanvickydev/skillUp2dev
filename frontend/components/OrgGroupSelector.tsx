@@ -47,6 +47,9 @@ export function OrgGroupSelector({ orgId, value, onChange, labels, role }: OrgGr
         if (value && flatGroups.length > 0) {
             const found = flatGroups.find(g => g.id === value)
             if (found) setSelectedGroup(found.group)
+        } else {
+            // Clear selection when value is undefined/null
+            setSelectedGroup(null)
         }
     }, [value, flatGroups])
 
