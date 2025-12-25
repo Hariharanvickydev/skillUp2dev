@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getOrganization, getDepartments, getUsers, createUser } from "@/lib/api"
+import { getOrganization, getUsers, createUser } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
@@ -31,12 +31,9 @@ export default function DepartmentDetailPage() {
 
     const fetchData = async () => {
         try {
-            // Get Dept info (from list of depts in org for now, simpler than dedicated getDept endpoint if lazy)
-            // But we ideally use the getDepartment endpoint if we exposed it directly or use the list
-            // Let's use the list for now or fetch list and find
-            const depts = await getDepartments(orgId)
-            const currentDept = depts.find((d: any) => d.id === deptId)
-            setDept(currentDept)
+            // Get Dept info directly from API
+            const response = await api.get(`/organizations/${orgId}/departments/${deptId}`)
+            setDept(response.data)
 
             // Get Faculty (Teachers in this Dept)
             const facultyData = await getUsers(orgId, deptId, 'TEACHER')
