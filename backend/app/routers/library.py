@@ -338,7 +338,39 @@ def get_sync_status(
                     "local_content": local_text,
                     "message": "Update available from library"
                 })
-                
+
+    # 3. Check for Important Question Updates
+    if org_course.parent_course_id:
+        lib_questions = db.query(models.ImportantQuestions).filter(models.ImportantQuestions.course_id == org_course.parent_course_id).all()
+        # Fetch local related questions
+        local_questions = db.query(models.ImportantQuestions).filter(
+            models.ImportantQuestions.course_id == course_id, 
+            models.ImportantQuestions.source_question_id.isnot(None)
+        ).all()
+        local_q_map = {q.source_question_id: q for q in local_questions}
+        
+        for lib_q in lib_questions:
+            local_match = local_q_map.get(lib_q.id)
+            
+            if not local_match:
+                 updates.append({
+                    "type": "NEW",
+                    "library_question": lib_q, 
+                    "message": "New question from library"
+                })
+            else:
+                 # Compare content (JSON) and Title
+                 # Note: lib_q.content is a dict, so direct comparison works
+                 if lib_q.content != local_match.content or lib_q.title != local_match.title:
+                     updates.append({
+                        "type": "UPDATE_AVAILABLE",
+                        "library_question": lib_q,
+                        "local_question": local_match,
+                        "library_content": str(lib_q.content),
+                        "local_content": str(local_match.content),
+                        "message": "Question updated"
+                    })
+
     return {
         "status": "UPDATES_AVAILABLE" if updates else "UP_TO_DATE",
         "parent_course_id": org_course.parent_course_id,
@@ -381,8 +413,42 @@ def sync_course_content(
     from datetime import datetime
     
     for item in sync_request.items:
-        lib_topic_id = item.library_topic_id
         action = item.action # OVERWRITE, CREATE, IGNORE
+
+        # --- IMPORTANT QUESTION SYNC ---
+        if item.library_question_id:
+            lib_quest = db.query(models.ImportantQuestions).filter(models.ImportantQuestions.id == item.library_question_id).first()
+            if not lib_quest:
+                continue
+
+            if action == "CREATE":
+                # Create duplicate
+                new_quest = models.ImportantQuestions(
+                    course_id=course_id,
+                    title=lib_quest.title,
+                    content=lib_quest.content,
+                    created_by_user_id=current_user.id,
+                    is_public=False, # Internal by default
+                    source_question_id=lib_quest.id
+                )
+                db.add(new_quest)
+            
+            elif action == "OVERWRITE":
+                local_quest = db.query(models.ImportantQuestions).filter(
+                    models.ImportantQuestions.course_id == course_id,
+                    models.ImportantQuestions.source_question_id == lib_quest.id
+                ).first()
+                if local_quest:
+                    local_quest.title = lib_quest.title
+                    local_quest.content = lib_quest.content
+                    # local_quest.updated_at automatically handled? if not explicit datetime.utcnow()
+            
+            continue
+
+        # --- TOPIC SYNC ---
+        lib_topic_id = item.library_topic_id
+        if not lib_topic_id:
+            continue
         
         # Get Lib Topic
         lib_topic = db.query(models.Topic).filter(models.Topic.id == lib_topic_id).first()

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { getSyncStatus, syncCourse, getCourse } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,8 @@ import { Textarea } from "@/components/ui/textarea"
 export default function CourseSyncPage() {
     const params = useParams()
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const typeFilter = searchParams.get('type')
     const courseId = params.id as string
 
     const [course, setCourse] = useState<any>(null)
@@ -41,7 +43,7 @@ export default function CourseSyncPage() {
 
     useEffect(() => {
         loadData()
-    }, [courseId])
+    }, [courseId, typeFilter])
 
     useEffect(() => {
         if (selectedUpdate) {
@@ -49,9 +51,11 @@ export default function CourseSyncPage() {
             setIsEditing(false)
 
             // Default View Logic:
-            // If we have local content -> Default to Visual Preview ("Full View").
-            // If we don't have local content -> Default to Source Comparison ("Split View").
-            if (selectedUpdate.local_content && selectedUpdate.local_content.trim().length > 0) {
+            const isQuestion = !!selectedUpdate.library_question;
+
+            if (isQuestion) {
+                setCompareMode("visual")
+            } else if (selectedUpdate.local_content && selectedUpdate.local_content.trim().length > 0) {
                 setCompareMode("visual")
             } else {
                 setCompareMode("source")
@@ -66,14 +70,22 @@ export default function CourseSyncPage() {
                 getSyncStatus(courseId)
             ])
             setCourse(courseData)
-            setUpdates(syncData.updates || [])
+            // Filter updates based on type params
+            let filteredUpdates = syncData.updates || []
+            if (typeFilter === 'QUESTION') {
+                filteredUpdates = filteredUpdates.filter((u: any) => !!u.library_question)
+            } else if (typeFilter === 'TOPIC') {
+                filteredUpdates = filteredUpdates.filter((u: any) => !!u.library_topic)
+            }
+
+            setUpdates(filteredUpdates)
             setStatusMessage(syncData.message)
 
             // Select first update if available
-            if (syncData.updates && syncData.updates.length > 0) {
+            if (filteredUpdates.length > 0) {
                 // Determine initial selection if not already set
                 if (!selectedUpdate) {
-                    setSelectedUpdate(syncData.updates[0])
+                    setSelectedUpdate(filteredUpdates[0])
                 }
             }
         } catch (e) {
@@ -86,22 +98,34 @@ export default function CourseSyncPage() {
     const handleSyncItem = async (update: any, action: 'OVERWRITE' | 'CREATE' | 'IGNORE') => {
         setSyncing(true)
         try {
-            await syncCourse(courseId, [{
-                library_topic_id: update.library_topic.id,
-                action: action
-            }])
+            const isQuestion = !!update.library_question
+            const payload = isQuestion
+                ? { library_question_id: update.library_question.id, action, library_topic_id: null }
+                : { library_topic_id: update.library_topic.id, action, library_question_id: null }
+
+            await syncCourse(courseId, [payload])
 
             toast.success("Update applied successfully")
 
             // Remove from list locally for instant feedback
-            const remaining = updates.filter(u => u.library_topic.id !== update.library_topic.id)
+            // For questions, match by question id. For topics, match by topic id.
+            const remaining = updates.filter(u => {
+                if (isQuestion) return u.library_question?.id !== update.library_question.id
+                return u.library_topic?.id !== update.library_topic.id
+            })
             setUpdates(remaining)
 
-            if (selectedUpdate?.library_topic.id === update.library_topic.id) {
-                setSelectedUpdate(remaining.length > 0 ? remaining[0] : null)
+            if (selectedUpdate) {
+                const currentId = isQuestion ? selectedUpdate.library_question?.id : selectedUpdate.library_topic?.id;
+                const updateId = isQuestion ? update.library_question.id : update.library_topic.id;
+
+                if (currentId === updateId) {
+                    setSelectedUpdate(remaining.length > 0 ? remaining[0] : null)
+                }
             }
 
         } catch (e) {
+            console.error(e)
             toast.error("Failed to sync item")
         } finally {
             setSyncing(false)
@@ -129,7 +153,6 @@ export default function CourseSyncPage() {
         <div className="flex-1 flex flex-col overflow-hidden bg-white border rounded-lg shadow-sm">
             <div className="px-4 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
                 <span>{title}</span>
-                {/* <Badge variant="outline" className="text-[10px] h-5">Read Only</Badge> */}
             </div>
             <div className="flex-1 overflow-y-auto p-6 relative">
                 {/* Visual indicator for empty content */}
@@ -142,7 +165,6 @@ export default function CourseSyncPage() {
                     <Markdown
                         remarkPlugins={[remarkGfm, remarkBreaks]}
                         components={{
-                            // Same components as editor to ensure WYSIWYG comparison
                             h1: ({ ...props }) => <h1 className="text-2xl font-bold text-slate-900 mt-0 mb-3 border-b pb-2" {...props} />,
                             h2: ({ ...props }) => <h2 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />,
                             ul: ({ ...props }) => <ul className="list-disc pl-5 space-y-1 mb-3 text-slate-700" {...props} />,
@@ -179,6 +201,68 @@ export default function CourseSyncPage() {
             </div>
         </div>
     )
+
+    const RenderQuestionPreview = ({ questionData, title }: { questionData: any, title: string }) => {
+        // Parse if string
+        let q = questionData;
+        if (typeof questionData === 'string') {
+            try {
+                q = JSON.parse(questionData)
+            } catch (e) {
+                // Fallback for raw strings (titles etc)
+                q = { question: questionData }
+            }
+        }
+
+        if (!q) return <RenderPreview content="No Content" title={title} />
+
+        return (
+            <div className="flex-1 flex flex-col overflow-hidden bg-white border rounded-lg shadow-sm">
+                <div className="px-4 py-2 border-b bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+                    <span>{title}</span>
+                    <Badge variant="outline" className="text-[10px] h-5">{q.type || 'QUESTION'}</Badge>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6 relative space-y-6">
+                    <div>
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Question</h4>
+                        <div className="prose prose-sm max-w-none text-slate-900 font-medium">
+                            {q.question || "No Question Text"}
+                        </div>
+                    </div>
+
+                    {q.options && q.options.length > 0 && (
+                        <div>
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Options</h4>
+                            <ul className="space-y-2">
+                                {q.options.map((opt: string, i: number) => (
+                                    <li key={i} className={cn("p-3 rounded-lg border text-sm flex items-start gap-3",
+                                        opt === q.correct_answer ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"
+                                    )}>
+                                        <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-white border text-[10px] font-bold text-slate-500">
+                                            {String.fromCharCode(65 + i)}
+                                        </span>
+                                        <span className={cn(opt === q.correct_answer ? "text-emerald-900 font-medium" : "text-slate-700")}>
+                                            {opt}
+                                        </span>
+                                        {opt === q.correct_answer && <CheckCircle className="h-4 w-4 text-emerald-600 ml-auto shrink-0" />}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {q.explanation && (
+                        <div>
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Explanation</h4>
+                            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 text-sm text-indigo-900">
+                                {q.explanation}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )
+    }
 
     const AndroidStudioDiffViewer = ({ oldText, newText }: { oldText: string, newText: string }) => {
         const diff = Diff.diffLines(oldText || "", newText || "")
@@ -471,28 +555,37 @@ export default function CourseSyncPage() {
                     </div>
                     <ScrollArea className="flex-1">
                         <div className="divide-y divide-slate-100">
-                            {updates.map((update) => (
-                                <button
-                                    key={update.library_topic.id}
-                                    onClick={() => setSelectedUpdate(update)}
-                                    className={cn(
-                                        "w-full text-left p-4 hover:bg-slate-50 transition-colors relative flex flex-col gap-1",
-                                        selectedUpdate === update ? "bg-indigo-50 hover:bg-indigo-50 ring-inset ring-2 ring-indigo-500" : ""
-                                    )}
-                                >
-                                    <div className="flex justify-between items-start w-full">
-                                        <h4 className={cn("font-medium text-sm line-clamp-1", selectedUpdate === update ? "text-indigo-900" : "text-slate-900")}>
-                                            {update.library_topic.title}
-                                        </h4>
-                                        {update.type === 'NEW' ? (
-                                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-[10px] h-5 px-1.5 border-0">NEW</Badge>
-                                        ) : (
-                                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] h-5 px-1.5 border-0">UPDATE</Badge>
+                            {updates.map((update) => {
+                                const isQuestion = !!update.library_question;
+                                const title = isQuestion ? update.library_question.title : update.library_topic.title;
+                                const id = isQuestion ? update.library_question.id : update.library_topic.id;
+
+                                return (
+                                    <button
+                                        key={id}
+                                        onClick={() => setSelectedUpdate(update)}
+                                        className={cn(
+                                            "w-full text-left p-4 hover:bg-slate-50 transition-colors relative flex flex-col gap-1",
+                                            selectedUpdate === update ? "bg-indigo-50 hover:bg-indigo-50 ring-inset ring-2 ring-indigo-500" : ""
                                         )}
-                                    </div>
-                                    <p className="text-xs text-slate-500 line-clamp-1">{update.message}</p>
-                                </button>
-                            ))}
+                                    >
+                                        <div className="flex justify-between items-start w-full">
+                                            <h4 className={cn("font-medium text-sm line-clamp-1", selectedUpdate === update ? "text-indigo-900" : "text-slate-900")}>
+                                                {title}
+                                            </h4>
+                                            {update.type === 'NEW' ? (
+                                                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-[10px] h-5 px-1.5 border-0">NEW</Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] h-5 px-1.5 border-0">UPDATE</Badge>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {isQuestion && <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 font-bold border border-blue-200">Q</span>}
+                                            <p className="text-xs text-slate-500 line-clamp-1">{update.message}</p>
+                                        </div>
+                                    </button>
+                                )
+                            })}
                         </div>
                     </ScrollArea>
                 </div>
@@ -507,19 +600,25 @@ export default function CourseSyncPage() {
                                     <div>
                                         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                                             <GitPullRequest className="h-4 w-4 text-indigo-500" />
-                                            Reviewing: {selectedUpdate.library_topic.title}
+                                            Reviewing: {selectedUpdate.library_question ? selectedUpdate.library_question.title : selectedUpdate.library_topic.title}
                                         </h2>
                                         <p className="text-xs text-slate-500 mt-0.5">
                                             comparing local vs. library version
                                         </p>
                                     </div>
 
-                                    <Tabs value={compareMode} onValueChange={(v: any) => setCompareMode(v)} className="w-[400px]">
-                                        <TabsList className="grid w-full grid-cols-2">
-                                            <TabsTrigger value="visual">Visual Preview</TabsTrigger>
-                                            <TabsTrigger value="source">Source Comparison</TabsTrigger>
-                                        </TabsList>
-                                    </Tabs>
+                                    {selectedUpdate.library_question ? (
+                                        <div className="bg-slate-100/50 px-3 py-1.5 rounded-md text-xs font-semibold text-slate-500 uppercase tracking-wider border border-slate-200">
+                                            Visual Preview
+                                        </div>
+                                    ) : (
+                                        <Tabs value={compareMode} onValueChange={(v: any) => setCompareMode(v)} className="w-[400px]">
+                                            <TabsList className="grid w-full grid-cols-2">
+                                                <TabsTrigger value="visual">Visual Preview</TabsTrigger>
+                                                <TabsTrigger value="source">Source Comparison</TabsTrigger>
+                                            </TabsList>
+                                        </Tabs>
+                                    )}
                                 </div>
 
 
@@ -533,7 +632,7 @@ export default function CourseSyncPage() {
                                         disabled={syncing}
                                     >
                                         {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                                        {selectedUpdate.type === 'NEW' ? "Add Topic" : "Accept & Sync"}
+                                        {selectedUpdate.type === 'NEW' ? (selectedUpdate.library_question ? "Add Question" : "Add Topic") : "Accept & Sync"}
                                     </Button>
                                 </div>
                             </div>
@@ -542,26 +641,42 @@ export default function CourseSyncPage() {
                             <div className="flex-1 p-6 flex gap-6 overflow-hidden">
                                 {compareMode === 'visual' ? (
                                     <>
-                                        <RenderPreview
-                                            title="Current Local Version"
-                                            content={selectedUpdate.local_content || ""}
-                                        />
+                                        {selectedUpdate.library_question ? (
+                                            /* For Questions, show only the proposed library version (Single Card View) */
+                                            <RenderQuestionPreview
+                                                title="Question Content"
+                                                questionData={selectedUpdate.library_content || selectedUpdate.library_question.content}
+                                            />
+                                        ) : (
+                                            /* For Topics, show comparison */
+                                            <>
+                                                <RenderPreview
+                                                    title="Current Local Version"
+                                                    content={selectedUpdate.local_content || ""}
+                                                />
 
-                                        <div className="flex items-center justify-center flex-col gap-2 text-slate-300">
-                                            <div className="h-px w-px bg-current flex-1"></div>
-                                            <ArrowRight className="h-6 w-6" />
-                                            <div className="h-px w-px bg-current flex-1"></div>
-                                        </div>
+                                                <div className="flex items-center justify-center flex-col gap-2 text-slate-300">
+                                                    <div className="h-px w-px bg-current flex-1"></div>
+                                                    <ArrowRight className="h-6 w-6" />
+                                                    <div className="h-px w-px bg-current flex-1"></div>
+                                                </div>
 
-                                        <RenderPreview
-                                            title="Latest Library Version"
-                                            content={selectedUpdate.library_content || selectedUpdate.library_topic.description || "No Content"}
-                                        />
+                                                <RenderPreview
+                                                    title="Latest Library Version"
+                                                    content={selectedUpdate.library_content || selectedUpdate.library_topic?.description || "No Content"}
+                                                />
+                                            </>
+                                        )}
                                     </>
                                 ) : (
                                     <AndroidStudioDiffViewer
                                         oldText={selectedUpdate.local_content || ""}
-                                        newText={selectedUpdate.library_content || selectedUpdate.library_topic.description || ""}
+                                        newText={
+                                            selectedUpdate.library_content ||
+                                            (selectedUpdate.library_question ? JSON.stringify(selectedUpdate.library_question.content, null, 2) : "") ||
+                                            selectedUpdate.library_topic?.description ||
+                                            ""
+                                        }
                                     />
                                 )}
                             </div>
