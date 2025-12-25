@@ -162,12 +162,32 @@ export default function LibraryPreviewPage() {
 
             {/* Tabs - Full Width */}
             <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
-                <div className="bg-white border-b border-slate-200">
-                    <TabsList className="w-full grid grid-cols-4 rounded-none bg-transparent h-14">
-                        <TabsTrigger value="overview" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Overview</TabsTrigger>
-                        <TabsTrigger value="syllabus" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Syllabus</TabsTrigger>
-                        <TabsTrigger value="content" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Full Content</TabsTrigger>
-                        <TabsTrigger value="exams" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Exams</TabsTrigger>
+                <div className="bg-white border-b border-slate-200 shadow-sm">
+                    <TabsList className="w-full grid grid-cols-4 rounded-none bg-transparent h-auto p-0">
+                        <TabsTrigger
+                            value="overview"
+                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                        >
+                            Overview
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="syllabus"
+                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                        >
+                            Syllabus
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="content"
+                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                        >
+                            Full Content
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="exams"
+                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                        >
+                            Exams
+                        </TabsTrigger>
                     </TabsList>
                 </div>
 
