@@ -59,7 +59,8 @@ import {
     Key,
     Lock,
     Unlock,
-    Upload
+    Upload,
+    Clock
 } from "lucide-react"
 import { toast } from "sonner"
 import { OrgGroupSelector } from "@/components/OrgGroupSelector"
@@ -142,6 +143,26 @@ export function PeopleManager({ orgId, orgType = 'COLLEGE', apiMode }: PeopleMan
             </Tabs>
         </div>
     )
+}
+
+// Helper function to format relative time
+function formatRelativeTime(dateString: string | null | undefined): string {
+    if (!dateString) return "Never";
+
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    // For older dates, show formatted date
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: string, role: string, level1Label: string, level2Label: string, apiMode: string }) {
@@ -310,6 +331,7 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                             <TableHead className="px-6 py-5 font-bold text-xs uppercase tracking-wider text-slate-500">Contact Info</TableHead>
                             <TableHead className="px-6 py-5 font-bold text-xs uppercase tracking-wider text-slate-500">{level1Label}</TableHead>
                             <TableHead className="px-6 py-5 font-bold text-xs uppercase tracking-wider text-slate-500">Status</TableHead>
+                            <TableHead className="px-6 py-5 font-bold text-xs uppercase tracking-wider text-slate-500">Last Login</TableHead>
                             <TableHead className="px-8 py-5 text-right font-bold text-xs uppercase tracking-wider text-slate-500">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -410,6 +432,17 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                                             <div className={`w-2 h-2 rounded-full mr-2 ${user.is_active ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
                                                 }`}></div>
                                             {user.is_active ? 'ACTIVE' : 'INACTIVE'}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="px-6 py-5">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-slate-400" />
+                                            <span className={`text-sm font-medium ${user.last_login_at
+                                                ? 'text-slate-600'
+                                                : 'text-amber-600'
+                                                }`}>
+                                                {formatRelativeTime(user.last_login_at)}
+                                            </span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="px-8 py-5 text-right">
