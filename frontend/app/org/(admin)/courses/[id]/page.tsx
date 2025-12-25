@@ -415,19 +415,50 @@ export default function OrgCourseEditorPage() {
         }
 
         try {
-            const fileContent = await bulkImportFile.text()
-            const questions = JSON.parse(fileContent)
+            const reader = new FileReader()
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target?.result as ArrayBuffer)
+                    const XLSX = await import('xlsx')
+                    const workbook = XLSX.read(data, { type: 'array' })
+                    const sheetName = workbook.SheetNames[0]
+                    const worksheet = workbook.Sheets[sheetName]
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
-            if (!Array.isArray(questions)) {
-                toast.error("Invalid file format. Expected an array of questions.")
-                return
+                    // Transform Excel rows to App Schema
+                    const parsedQuestions = jsonData.map((row: any) => {
+                        const options = []
+                        if (row["Option 1"]) options.push(row["Option 1"])
+                        if (row["Option 2"]) options.push(row["Option 2"])
+                        if (row["Option 3"]) options.push(row["Option 3"])
+                        if (row["Option 4"]) options.push(row["Option 4"])
+
+                        return {
+                            title: row["Title"] || "Untitled Question",
+                            module_id: null,
+                            is_public: false, // Always start as draft
+                            content: {
+                                type: row["Type"] || "MCQ",
+                                marks: Number(row["Marks"]) || 1,
+                                question: row["Question Text"] || "",
+                                options: options,
+                                answer: row["Answer / Correct Option"] || "",
+                                explanation: row["Explanation"] || ""
+                            }
+                        }
+                    })
+
+                    await bulkImportImportantQuestions(params.id as string, parsedQuestions)
+                    toast.success(`Successfully imported ${parsedQuestions.length} questions`)
+                    setIsBulkImportDialogOpen(false)
+                    setBulkImportFile(null)
+                    fetchQuestions()
+                } catch (err) {
+                    console.error(err)
+                    toast.error("Failed to parse Excel file")
+                }
             }
-
-            await bulkImportImportantQuestions(params.id as string, questions)
-            toast.success(`Successfully imported ${questions.length} questions`)
-            setIsBulkImportDialogOpen(false)
-            setBulkImportFile(null)
-            fetchQuestions()
+            reader.readAsArrayBuffer(bulkImportFile)
         } catch (e: any) {
             console.error(e)
             toast.error(e.message || "Failed to import questions")
@@ -1420,42 +1451,77 @@ export default function OrgCourseEditorPage() {
                     <DialogHeader>
                         <DialogTitle>Bulk Import Questions</DialogTitle>
                         <DialogDescription>
-                            Upload a JSON file containing multiple questions. All imported questions will start as DRAFT.
+                            Upload an Excel file (.xlsx) containing multiple questions. All imported questions will start as DRAFT.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div>
-                            <label className="text-sm font-medium">Select JSON File</label>
-                            <Input
-                                type="file"
-                                accept=".json"
-                                onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
-                                className="mt-2"
-                            />
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                    const XLSX = await import('xlsx')
+                                    const template = [
+                                        {
+                                            "Title": "Sample MCQ Question",
+                                            "Type": "MCQ",
+                                            "Question Text": "What is 2+2?",
+                                            "Option 1": "3",
+                                            "Option 2": "4",
+                                            "Option 3": "5",
+                                            "Option 4": "6",
+                                            "Answer / Correct Option": "4",
+                                            "Explanation": "Basic arithmetic",
+                                            "Marks": 2
+                                        },
+                                        {
+                                            "Title": "Sample True/False Question",
+                                            "Type": "TRUE_FALSE",
+                                            "Question Text": "The sky is blue",
+                                            "Option 1": "True",
+                                            "Option 2": "False",
+                                            "Option 3": "",
+                                            "Option 4": "",
+                                            "Answer / Correct Option": "True",
+                                            "Explanation": "The sky appears blue due to Rayleigh scattering",
+                                            "Marks": 1
+                                        }
+                                    ]
+                                    const ws = XLSX.utils.json_to_sheet(template)
+                                    const wb = XLSX.utils.book_new()
+                                    XLSX.utils.book_append_sheet(wb, ws, "Questions")
+                                    XLSX.writeFile(wb, "question_bank_template.xlsx")
+                                }}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download Template
+                            </Button>
+
+                            <div className="relative flex-1">
+                                <input
+                                    type="file"
+                                    accept=".xlsx, .xls"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
+                                />
+                                <Button variant="secondary" size="sm" className="w-full">
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    {bulkImportFile ? bulkImportFile.name : "Upload Excel File"}
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                            <h4 className="font-medium text-sm mb-2">Expected JSON Format:</h4>
-                            <pre className="text-xs bg-white p-3 rounded border overflow-x-auto">
-                                {`[
-  {
-    "title": "Question Title",
-    "content": {
-      "type": "MCQ",
-      "question": "What is...?",
-      "options": ["A", "B", "C", "D"],
-      "answer": "A",
-      "explanation": "Because...",
-      "marks": 2
-    },
-    "is_public": false,
-    "module_id": null
-  }
-]`}
-                            </pre>
-                            <p className="text-xs text-slate-500 mt-2">
-                                Types: MCQ, TRUE_FALSE, SHORT_ANSWER, LONG_ANSWER
-                            </p>
+                            <h4 className="font-medium text-sm mb-2">Excel Column Format:</h4>
+                            <div className="text-xs space-y-1 text-slate-600">
+                                <p>• <strong>Title</strong>: Question title</p>
+                                <p>• <strong>Type</strong>: MCQ, TRUE_FALSE, SHORT_ANSWER, or LONG_ANSWER</p>
+                                <p>• <strong>Question Text</strong>: The actual question</p>
+                                <p>• <strong>Option 1-4</strong>: Answer options (for MCQ/TRUE_FALSE)</p>
+                                <p>• <strong>Answer / Correct Option</strong>: The correct answer</p>
+                                <p>• <strong>Explanation</strong>: Optional explanation</p>
+                                <p>• <strong>Marks</strong>: Points for the question</p>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
