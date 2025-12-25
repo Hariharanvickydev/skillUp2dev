@@ -121,6 +121,8 @@ export default function OrgCourseEditorPage() {
             marks: 2
         }
     })
+    const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false)
+    const [bulkImportFile, setBulkImportFile] = useState<File | null>(null)
 
     const fetchCourse = async () => {
         try {
@@ -403,6 +405,32 @@ export default function OrgCourseEditorPage() {
             fetchQuestions()
         } catch (e) {
             toast.error("Failed to delete question")
+        }
+    }
+
+    const handleBulkImport = async () => {
+        if (!bulkImportFile) {
+            toast.error("Please select a file")
+            return
+        }
+
+        try {
+            const fileContent = await bulkImportFile.text()
+            const questions = JSON.parse(fileContent)
+
+            if (!Array.isArray(questions)) {
+                toast.error("Invalid file format. Expected an array of questions.")
+                return
+            }
+
+            await bulkImportImportantQuestions(params.id as string, questions)
+            toast.success(`Successfully imported ${questions.length} questions`)
+            setIsBulkImportDialogOpen(false)
+            setBulkImportFile(null)
+            fetchQuestions()
+        } catch (e: any) {
+            console.error(e)
+            toast.error(e.message || "Failed to import questions")
         }
     }
 
@@ -905,6 +933,17 @@ export default function OrgCourseEditorPage() {
                                         Add Question
                                     </Button>
                                 )}
+                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                    <Button
+                                        onClick={() => setIsBulkImportDialogOpen(true)}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                    >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        Bulk Import
+                                    </Button>
+                                )}
                                 {course.parent_course_id && (
                                     <Button
                                         onClick={() => handleCheckSync('QUESTION')}
@@ -1370,6 +1409,63 @@ export default function OrgCourseEditorPage() {
                         }}>Cancel</Button>
                         <Button onClick={editingQuestion ? handleEditQuestion : handleCreateQuestion}>
                             {editingQuestion ? "Update" : "Create"} Question
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Import Dialog */}
+            <Dialog open={isBulkImportDialogOpen} onOpenChange={setIsBulkImportDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Bulk Import Questions</DialogTitle>
+                        <DialogDescription>
+                            Upload a JSON file containing multiple questions. All imported questions will start as DRAFT.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-sm font-medium">Select JSON File</label>
+                            <Input
+                                type="file"
+                                accept=".json"
+                                onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
+                                className="mt-2"
+                            />
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <h4 className="font-medium text-sm mb-2">Expected JSON Format:</h4>
+                            <pre className="text-xs bg-white p-3 rounded border overflow-x-auto">
+                                {`[
+  {
+    "title": "Question Title",
+    "content": {
+      "type": "MCQ",
+      "question": "What is...?",
+      "options": ["A", "B", "C", "D"],
+      "answer": "A",
+      "explanation": "Because...",
+      "marks": 2
+    },
+    "is_public": false,
+    "module_id": null
+  }
+]`}
+                            </pre>
+                            <p className="text-xs text-slate-500 mt-2">
+                                Types: MCQ, TRUE_FALSE, SHORT_ANSWER, LONG_ANSWER
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setIsBulkImportDialogOpen(false)
+                            setBulkImportFile(null)
+                        }}>Cancel</Button>
+                        <Button onClick={handleBulkImport} disabled={!bulkImportFile}>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Import Questions
                         </Button>
                     </DialogFooter>
                 </DialogContent>
