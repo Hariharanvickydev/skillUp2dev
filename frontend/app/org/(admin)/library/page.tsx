@@ -20,10 +20,12 @@ import {
     Tag,
     BookOpen,
     ChevronDown,
+    ChevronRight,
     Download,
     Loader2,
     Info,
-    AlertCircle
+    AlertCircle,
+    Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +38,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function OrgLibraryPage() {
     const router = useRouter();
@@ -307,7 +310,7 @@ export default function OrgLibraryPage() {
 
             {/* Preview Sheet */}
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent side="right" className="sm:max-w-xl overflow-y-auto w-full">
+                <SheetContent side="right" className="sm:max-w-3xl overflow-y-auto w-full">
                     <SheetHeader>
                         <Badge className="w-fit mb-2">{selectedCourse?.category}</Badge>
                         <SheetTitle className="text-2xl font-bold">{selectedCourse?.title}</SheetTitle>
@@ -316,67 +319,168 @@ export default function OrgLibraryPage() {
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div className="py-8 space-y-8">
-                        {/* Stats */}
-                        <div className="flex gap-4">
-                            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg flex-1 justify-center border border-slate-100">
-                                <Layers className="h-5 w-5 text-indigo-500" />
-                                <div className="text-sm">
-                                    <span className="font-bold block text-lg">{selectedCourse?.topics?.length || 0}</span> Modules
+                    <Tabs defaultValue="overview" className="mt-6">
+                        <TabsList className="grid w-full grid-cols-4">
+                            <TabsTrigger value="overview">Overview</TabsTrigger>
+                            <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
+                            <TabsTrigger value="sample">Sample</TabsTrigger>
+                            <TabsTrigger value="exams">Exams</TabsTrigger>
+                        </TabsList>
+
+                        {/* Overview Tab */}
+                        <TabsContent value="overview" className="space-y-6 mt-6">
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Layers className="h-6 w-6 text-indigo-500" />
+                                    <div className="text-center">
+                                        <span className="font-bold block text-2xl text-slate-900">{selectedCourse?.topics?.length || 0}</span>
+                                        <span className="text-xs text-slate-500">Modules</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Star className="h-6 w-6 text-orange-500" />
+                                    <div className="text-center">
+                                        <span className="font-bold block text-2xl text-slate-900">{selectedCourse?.difficulty || 'N/A'}</span>
+                                        <span className="text-xs text-slate-500">Level</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Clock className="h-6 w-6 text-emerald-500" />
+                                    <div className="text-center">
+                                        <span className="font-bold block text-2xl text-slate-900">~{Math.ceil((selectedCourse?.topics?.length || 0) * 2)}h</span>
+                                        <span className="text-xs text-slate-500">Duration</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg flex-1 justify-center border border-slate-100">
-                                <Star className="h-5 w-5 text-orange-500" />
-                                <div className="text-sm">
-                                    <span className="font-bold block text-lg">{selectedCourse?.difficulty}</span> Level
+
+                            {/* Outcomes */}
+                            {selectedCourse?.outcomes?.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                        <Tag className="h-4 w-4 text-emerald-600" /> What Students Will Learn
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {selectedCourse.outcomes.map((outcome: string, idx: number) => (
+                                            <li key={idx} className="flex gap-2 text-sm text-slate-600">
+                                                <Check className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                                                <span>{outcome}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
-                            </div>
-                        </div>
+                            )}
+                        </TabsContent>
 
-                        {/* Outcomes */}
-                        {selectedCourse?.outcomes?.length > 0 && (
-                            <div>
-                                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                    <Tag className="h-4 w-4 text-emerald-600" /> What Students Will Learn
-                                </h4>
-                                <ul className="space-y-2">
-                                    {selectedCourse.outcomes.map((outcome: string, idx: number) => (
-                                        <li key={idx} className="flex gap-2 text-sm text-slate-600">
-                                            <Check className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                                            <span>{outcome}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
-                        {/* Syllabus */}
-                        <div>
-                            <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                <BookOpen className="h-4 w-4 text-indigo-600" /> Syllabus Preview
+                        {/* Syllabus Tab */}
+                        <TabsContent value="syllabus" className="space-y-2 mt-6">
+                            <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                                <BookOpen className="h-4 w-4 text-indigo-600" /> Full Course Syllabus
                             </h4>
-                            <div className="space-y-3">
-                                {selectedCourse?.topics?.slice(0, 5).map((topic: any, idx: number) => (
-                                    <div key={topic.id} className="p-4 border border-slate-100 rounded-xl bg-white flex gap-3">
-                                        <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
-                                            {idx + 1}
+                            {selectedCourse?.topics?.map((module: any, idx: number) => (
+                                <Collapsible key={module.id}>
+                                    <CollapsibleTrigger className="w-full">
+                                        <div className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg border border-slate-100 transition-colors">
+                                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                                            <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 flex-shrink-0">
+                                                {idx + 1}
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <h5 className="font-medium text-slate-900">{module.title}</h5>
+                                                <p className="text-xs text-slate-500 line-clamp-1">{module.description}</p>
+                                            </div>
+                                            {module.topics?.length > 0 && (
+                                                <Badge variant="outline" className="text-xs">
+                                                    {module.topics.length} topics
+                                                </Badge>
+                                            )}
                                         </div>
-                                        <div>
-                                            <h5 className="font-medium text-slate-900">{topic.title}</h5>
-                                            <p className="text-xs text-slate-500 line-clamp-1">{topic.description}</p>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <div className="pl-12 pr-3 py-2 space-y-1">
+                                            {module.topics?.map((topic: any, tIdx: number) => (
+                                                <div key={topic.id} className="p-2 text-sm text-slate-600 hover:bg-slate-50 rounded">
+                                                    {idx + 1}.{tIdx + 1} {topic.title}
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                ))}
-                                {(selectedCourse?.topics?.length || 0) > 5 && (
-                                    <div className="text-center text-sm text-slate-500 italic p-2">
-                                        + {(selectedCourse?.topics?.length || 0) - 5} more modules...
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            ))}
+                            {(!selectedCourse?.topics || selectedCourse.topics.length === 0) && (
+                                <div className="text-center py-12 text-slate-400">
+                                    No syllabus available
+                                </div>
+                            )}
+                        </TabsContent>
 
-                    <SheetFooter className="border-t pt-6 mt-auto">
+                        {/* Sample Tab */}
+                        <TabsContent value="sample" className="mt-6">
+                            {selectedCourse?.topics?.[0]?.content ? (
+                                <div>
+                                    <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Eye className="h-5 w-5 text-indigo-600" />
+                                        Sample Lesson: {selectedCourse.topics[0].title}
+                                    </h4>
+                                    <div
+                                        className="prose prose-sm max-w-none bg-slate-50 p-6 rounded-lg border border-slate-100"
+                                        dangerouslySetInnerHTML={{ __html: selectedCourse.topics[0].content }}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="text-center py-20 text-slate-400">
+                                    <Eye className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                    <p>No sample content available for preview</p>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        {/* Exams Tab */}
+                        <TabsContent value="exams" className="space-y-4 mt-6">
+                            {selectedCourse?.exams?.length > 0 ? (
+                                selectedCourse.exams.map((exam: any) => (
+                                    <div key={exam.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Badge className="bg-indigo-100 text-indigo-700">{exam.type || 'Exam'}</Badge>
+                                            <h5 className="font-semibold text-slate-900">{exam.title}</h5>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Questions:</span>
+                                                <span className="font-medium">{exam.questions?.length || 0}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Duration:</span>
+                                                <span className="font-medium">{exam.duration_minutes || 'N/A'}min</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Difficulty:</span>
+                                                <span className="font-medium">{exam.difficulty || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Passing Score:</span>
+                                                <span className="font-medium">{exam.passing_score || 'N/A'}%</span>
+                                            </div>
+                                        </div>
+
+                                        {exam.questions?.[0] && (
+                                            <div className="mt-4 p-3 bg-slate-50 rounded border border-slate-100">
+                                                <p className="text-xs font-semibold text-slate-500 mb-2">SAMPLE QUESTION:</p>
+                                                <p className="text-sm text-slate-700">{exam.questions[0].question}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-20 text-slate-400">
+                                    <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                    <p>No exams included in this course</p>
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+
+                    <SheetFooter className="border-t pt-6 mt-8">
                         <Button
                             size="lg"
                             className="w-full bg-indigo-600 hover:bg-indigo-700 font-bold text-lg h-14 shadow-xl shadow-indigo-200"
