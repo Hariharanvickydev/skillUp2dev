@@ -61,9 +61,11 @@ import {
     Unlock,
     Upload,
     Clock,
-    Download
+    Download,
+    X
 } from "lucide-react"
 import { toast } from "sonner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OrgGroupSelector } from "@/components/OrgGroupSelector"
 import { BulkUploadDialog } from "@/components/BulkUploadDialog"
 
@@ -218,6 +220,13 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
     const [users, setUsers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+
+    // Filters
+    const [filters, setFilters] = useState({
+        status: 'all',        // 'all' | 'active' | 'inactive'
+        department: 'all',    // 'all' | department name
+        lastLogin: 'all'      // 'all' | 'never' | '7days' | '30days' | '30plus'
+    })
 
     // Pagination
     const [page, setPage] = useState(1)
@@ -380,6 +389,61 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                 </Button>
             </div>
 
+            {/* Filters */}
+            <div className="flex gap-2 items-center flex-wrap">
+                {/* Status Filter */}
+                <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>
+                    <SelectTrigger className="w-[140px] h-10 rounded-xl border-slate-200">
+                        <Filter className="h-3.5 w-3.5 mr-1.5 text-slate-500" />
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                {/* Department Filter */}
+                <Select value={filters.department} onValueChange={(v) => setFilters({ ...filters, department: v })}>
+                    <SelectTrigger className="w-[180px] h-10 rounded-xl border-slate-200">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Departments</SelectItem>
+                        {Array.from(new Set(users.map(u => getDepartmentPath(u)))).sort().map(dept => (
+                            <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                {/* Last Login Filter */}
+                <Select value={filters.lastLogin} onValueChange={(v) => setFilters({ ...filters, lastLogin: v })}>
+                    <SelectTrigger className="w-[160px] h-10 rounded-xl border-slate-200">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Logins</SelectItem>
+                        <SelectItem value="never">Never Logged In</SelectItem>
+                        <SelectItem value="7days">Last 7 Days</SelectItem>
+                        <SelectItem value="30days">Last 30 Days</SelectItem>
+                        <SelectItem value="30plus">30+ Days Ago</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                {/* Clear Filters */}
+                {(filters.status !== 'all' || filters.department !== 'all' || filters.lastLogin !== 'all') && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFilters({ status: 'all', department: 'all', lastLogin: 'all' })}
+                        className="h-10 px-3 rounded-xl text-slate-600 hover:text-slate-900"
+                    >
+                        <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+                    </Button>
+                )}
+            </div>
+
             {/* Table */}
             <div className="rounded-3xl border border-slate-200/60 bg-white overflow-hidden shadow-xl shadow-slate-200/40">
                 <Table>
@@ -394,28 +458,63 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {loading ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="h-48 text-center">
-                                    <div className="flex flex-col items-center justify-center gap-2">
-                                        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-                                        <p className="text-slate-400 text-sm font-medium">Loading users...</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : users.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="h-48 text-center text-slate-400">
-                                    <div className="flex flex-col items-center justify-center gap-3">
-                                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-                                            <UserX className="h-6 w-6 text-slate-300" />
-                                        </div>
-                                        <p className="font-medium">No users found</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            users.map((user) => (
+                        {(() => {
+                            // Apply filters
+                            const filteredUsers = users.filter(user => {
+                                // Status filter
+                                if (filters.status === 'active' && !user.is_active) return false;
+                                if (filters.status === 'inactive' && user.is_active) return false;
+
+                                // Department filter
+                                if (filters.department !== 'all') {
+                                    const userDept = getDepartmentPath(user);
+                                    if (userDept !== filters.department) return false;
+                                }
+
+                                // Last Login filter
+                                if (filters.lastLogin !== 'all') {
+                                    const daysSinceLogin = user.last_login_at
+                                        ? Math.floor((Date.now() - new Date(user.last_login_at + (user.last_login_at.endsWith('Z') ? '' : 'Z')).getTime()) / 86400000)
+                                        : null;
+
+                                    if (filters.lastLogin === 'never' && daysSinceLogin !== null) return false;
+                                    if (filters.lastLogin === '7days' && (daysSinceLogin === null || daysSinceLogin > 7)) return false;
+                                    if (filters.lastLogin === '30days' && (daysSinceLogin === null || daysSinceLogin > 30)) return false;
+                                    if (filters.lastLogin === '30plus' && (daysSinceLogin === null || daysSinceLogin <= 30)) return false;
+                                }
+
+                                return true;
+                            });
+
+                            if (loading) {
+                                return (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="h-48 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+                                                <p className="text-slate-400 text-sm font-medium">Loading users...</p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            }
+
+                            if (filteredUsers.length === 0) {
+                                return (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="h-48 text-center text-slate-400">
+                                            <div className="flex flex-col items-center justify-center gap-3">
+                                                <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
+                                                    <UserX className="h-6 w-6 text-slate-300" />
+                                                </div>
+                                                <p className="font-medium">No users found</p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            }
+
+                            return filteredUsers.map((user) => (
                                 <TableRow key={user.id} className="cursor-default transition-all duration-200 hover:bg-slate-50/80 border-b border-slate-50 last:border-0 group relative hover:shadow-[inset_4px_0_0_0_#6366f1]">
                                     <TableCell className="px-8 py-5">
                                         <div className="flex items-center gap-4">
@@ -541,7 +640,7 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                                     </TableCell>
                                 </TableRow>
                             ))
-                        )}
+                        })()}
                     </TableBody>
                 </Table>
             </div>
