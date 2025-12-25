@@ -166,25 +166,25 @@ export default function LibraryPreviewPage() {
                     <TabsList className="w-full grid grid-cols-4 rounded-none bg-transparent h-auto p-0">
                         <TabsTrigger
                             value="overview"
-                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                            className="relative rounded-none border-b-[3px] border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm"
                         >
                             Overview
                         </TabsTrigger>
                         <TabsTrigger
                             value="syllabus"
-                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                            className="relative rounded-none border-b-[3px] border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm"
                         >
                             Syllabus
                         </TabsTrigger>
                         <TabsTrigger
                             value="content"
-                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                            className="relative rounded-none border-b-[3px] border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm"
                         >
                             Full Content
                         </TabsTrigger>
                         <TabsTrigger
                             value="exams"
-                            className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm data-[state=active]:shadow-sm"
+                            className="relative rounded-none border-b-[3px] border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-indigo-50/50 data-[state=active]:text-indigo-700 hover:bg-slate-50 transition-all py-4 font-semibold text-sm"
                         >
                             Exams
                         </TabsTrigger>
