@@ -408,7 +408,7 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                 <div className="relative">
                     <OrgGroupSelector
                         orgId={orgId}
-                        value={filters.department}
+                        value={filters.department === 'all' ? undefined : filters.department}
                         onChange={(id, name) => setFilters({ ...filters, department: id || 'all' })}
                         labels={{ level1: level1Label, level2: level2Label }}
                         role={role}
