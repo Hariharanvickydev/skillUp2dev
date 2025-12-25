@@ -149,7 +149,7 @@ export function PeopleManager({ orgId, orgType = 'COLLEGE', apiMode }: PeopleMan
 function formatRelativeTime(dateString: string | null | undefined): string {
     if (!dateString) return "Never";
 
-    const date = new Date(dateString);
+    const date = new Date(dateString + (dateString.endsWith('Z') ? '' : 'Z'));
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
