@@ -60,7 +60,8 @@ import {
     Lock,
     Unlock,
     Upload,
-    Clock
+    Clock,
+    Download
 } from "lucide-react"
 import { toast } from "sonner"
 import { OrgGroupSelector } from "@/components/OrgGroupSelector"
@@ -161,8 +162,56 @@ function formatRelativeTime(dateString: string | null | undefined): string {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
 
-    // For older dates, show formatted date
+    // For older dates, show formatted date in local timezone
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Helper function to get department path as string
+function getDepartmentPath(user: any): string {
+    if (user.group) {
+        const parts = [];
+        let current = user.group;
+        while (current) {
+            parts.unshift(current.name);
+            current = current.parent;
+        }
+        return parts.join(' / ');
+    }
+    return user.department_name || 'General';
+}
+
+// Helper function to export users to CSV
+function exportToCSV(users: any[], role: string) {
+    // CSV headers
+    const headers = ['Name', 'Email', 'Phone', 'Department', 'Roll Number', 'Year', 'Status', 'Last Login'];
+
+    // Convert users to CSV rows
+    const rows = users.map(user => [
+        user.full_name || '',
+        user.email || '',
+        user.phone || '',
+        getDepartmentPath(user),
+        user.roll_number || '',
+        user.year || '',
+        user.is_active ? 'Active' : 'Inactive',
+        formatRelativeTime(user.last_login_at)
+    ]);
+
+    // Create CSV content with proper escaping
+    const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const roleLabel = role.toLowerCase().replace('_', '-');
+    link.download = `${roleLabel}s_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${users.length} ${roleLabel}(s) to CSV`);
 }
 
 function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: string, role: string, level1Label: string, level2Label: string, apiMode: string }) {
@@ -320,6 +369,15 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                         className="pl-11 h-12 rounded-2xl bg-white border-slate-200 focus:border-indigo-500 shadow-sm transition-all text-base"
                     />
                 </div>
+                <Button
+                    onClick={() => exportToCSV(users, role)}
+                    disabled={users.length === 0}
+                    variant="outline"
+                    className="h-12 px-4 rounded-2xl border-slate-200 hover:bg-slate-50 transition-all"
+                >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                </Button>
             </div>
 
             {/* Table */}
