@@ -285,72 +285,88 @@ export default function OrgDashboard() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4 p-6">
-                            {(!stats) || (stats.total_students === 0 && stats.total_courses === 0) ? (
-                                <div className="flex items-center justify-center h-32 text-sm text-slate-500">
-                                    <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full border border-green-100">
-                                        Everything looks good!
-                                    </span>
-                                </div>
-                            ) : (
-                                <>
-                                    {stats && stats.total_students >= 45 && (
-                                        <div className="flex items-start gap-3 p-4 bg-red-50 text-red-700 rounded-xl text-sm border border-red-100 shadow-sm animate-in slide-in-from-right duration-500">
-                                            <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
-                                            <div>
-                                                <p className="font-semibold text-red-800">Student Limit Reached</p>
-                                                <p>You are nearing your plan limit (Current: {stats.total_students}, Max: 50)</p>
-                                            </div>
+                            {(() => {
+                                if (!stats) return null;
+
+                                const hasAnyAlert = (
+                                    stats.total_students >= 45 ||
+                                    (stats?.pending_approvals || 0) > 0 ||
+                                    (stats.ai_usage.used / stats.ai_usage.limit) > 0.8 ||
+                                    (stats?.total_courses || 0) === 0 ||
+                                    !stats?.total_teachers
+                                );
+
+                                if (!hasAnyAlert) {
+                                    return (
+                                        <div className="flex items-center justify-center h-32 text-sm text-slate-500">
+                                            <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full border border-green-100">
+                                                Everything looks good!
+                                            </span>
                                         </div>
-                                    )}
-                                    {/* Pending Approvals Alert */}
-                                    {(stats?.pending_approvals || 0) > 0 && (
-                                        <div
-                                            className="flex items-start gap-3 p-4 bg-indigo-50 text-indigo-700 rounded-xl text-sm border border-indigo-100 shadow-sm animate-in slide-in-from-right duration-500 cursor-pointer hover:bg-indigo-100 transition-colors"
-                                            onClick={() => router.push('/org/approvals')}
-                                        >
-                                            <FileText className="h-5 w-5 shrink-0 text-indigo-600" />
-                                            <div className="flex-1">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="font-semibold text-indigo-800">Review Required</p>
-                                                    <span className="bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-bold">
-                                                        {stats?.pending_approvals}
-                                                    </span>
+                                    );
+                                }
+
+                                return (
+                                    <>
+                                        {stats && stats.total_students >= 45 && (
+                                            <div className="flex items-start gap-3 p-4 bg-red-50 text-red-700 rounded-xl text-sm border border-red-100 shadow-sm animate-in slide-in-from-right duration-500">
+                                                <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
+                                                <div>
+                                                    <p className="font-semibold text-red-800">Student Limit Reached</p>
+                                                    <p>You are nearing your plan limit (Current: {stats.total_students}, Max: 50)</p>
                                                 </div>
-                                                <p className="mt-1">
-                                                    There are {stats?.pending_approvals} topics waiting for approval.
-                                                </p>
                                             </div>
-                                        </div>
-                                    )}
-                                    {stats && (stats.ai_usage.used / stats.ai_usage.limit) > 0.8 && (
-                                        <div className="flex items-start gap-3 p-4 bg-orange-50 text-orange-700 rounded-xl text-sm border border-orange-100 shadow-sm animate-in slide-in-from-right duration-500 delay-100">
-                                            <AlertTriangle className="h-5 w-5 shrink-0 text-orange-600" />
-                                            <div>
-                                                <p className="font-semibold text-orange-800">High AI Usage</p>
-                                                <p>{stats.ai_usage.used} / {stats.ai_usage.limit} Credits used</p>
+                                        )}
+                                        {/* Pending Approvals Alert */}
+                                        {(stats?.pending_approvals || 0) > 0 && (
+                                            <div
+                                                className="flex items-start gap-3 p-4 bg-indigo-50 text-indigo-700 rounded-xl text-sm border border-indigo-100 shadow-sm animate-in slide-in-from-right duration-500 cursor-pointer hover:bg-indigo-100 transition-colors"
+                                                onClick={() => router.push('/org/approvals')}
+                                            >
+                                                <FileText className="h-5 w-5 shrink-0 text-indigo-600" />
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="font-semibold text-indigo-800">Review Required</p>
+                                                        <span className="bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-bold">
+                                                            {stats?.pending_approvals}
+                                                        </span>
+                                                    </div>
+                                                    <p className="mt-1">
+                                                        There are {stats?.pending_approvals} topics waiting for approval.
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                    {((stats?.total_courses || 0) === 0) && (
-                                        <div className="flex items-start gap-3 p-4 bg-blue-50 text-blue-700 rounded-xl text-sm border border-blue-100 shadow-sm animate-in slide-in-from-right duration-500 delay-200">
-                                            <BookOpen className="h-5 w-5 shrink-0 text-blue-600" />
-                                            <div>
-                                                <p className="font-semibold text-blue-800">No Content Yet</p>
-                                                <p>Import or create your first course to get started.</p>
+                                        )}
+                                        {stats && (stats.ai_usage.used / stats.ai_usage.limit) > 0.8 && (
+                                            <div className="flex items-start gap-3 p-4 bg-orange-50 text-orange-700 rounded-xl text-sm border border-orange-100 shadow-sm animate-in slide-in-from-right duration-500 delay-100">
+                                                <AlertTriangle className="h-5 w-5 shrink-0 text-orange-600" />
+                                                <div>
+                                                    <p className="font-semibold text-orange-800">High AI Usage</p>
+                                                    <p>{stats.ai_usage.used} / {stats.ai_usage.limit} Credits used</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                    {(!stats?.total_teachers) && (
-                                        <div className="flex items-start gap-3 p-4 bg-yellow-50 text-yellow-700 rounded-xl text-sm border border-yellow-100 shadow-sm animate-in slide-in-from-right duration-500 delay-300">
-                                            <Users className="h-5 w-5 shrink-0 text-yellow-600" />
-                                            <div>
-                                                <p className="font-semibold text-yellow-800">Add Teachers</p>
-                                                <p>Invite faculty members to manage your courses.</p>
+                                        )}
+                                        {((stats?.total_courses || 0) === 0) && (
+                                            <div className="flex items-start gap-3 p-4 bg-blue-50 text-blue-700 rounded-xl text-sm border border-blue-100 shadow-sm animate-in slide-in-from-right duration-500 delay-200">
+                                                <BookOpen className="h-5 w-5 shrink-0 text-blue-600" />
+                                                <div>
+                                                    <p className="font-semibold text-blue-800">No Content Yet</p>
+                                                    <p>Import or create your first course to get started.</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                                        )}
+                                        {(!stats?.total_teachers) && (
+                                            <div className="flex items-start gap-3 p-4 bg-yellow-50 text-yellow-700 rounded-xl text-sm border border-yellow-100 shadow-sm animate-in slide-in-from-right duration-500 delay-300">
+                                                <Users className="h-5 w-5 shrink-0 text-yellow-600" />
+                                                <div>
+                                                    <p className="font-semibold text-yellow-800">Add Teachers</p>
+                                                    <p>Invite faculty members to manage your courses.</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </CardContent>
                     </Card>
 
