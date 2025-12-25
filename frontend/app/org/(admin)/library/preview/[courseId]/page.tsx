@@ -161,12 +161,12 @@ export default function LibraryPreviewPage() {
             </header>
 
             {/* Tabs - Full Width */}
-            <Tabs defaultValue="content" className="flex-1 flex flex-col overflow-hidden">
+            <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
                 <div className="bg-white border-b border-slate-200">
                     <TabsList className="w-full grid grid-cols-4 rounded-none bg-transparent h-14">
-                        <TabsTrigger value="content" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Full Content</TabsTrigger>
                         <TabsTrigger value="overview" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Overview</TabsTrigger>
                         <TabsTrigger value="syllabus" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Syllabus</TabsTrigger>
+                        <TabsTrigger value="content" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Full Content</TabsTrigger>
                         <TabsTrigger value="exams" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none">Exams</TabsTrigger>
                     </TabsList>
                 </div>
