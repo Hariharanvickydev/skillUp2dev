@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getCourse, addTopic, updateTopic, deleteTopic, generateTopics, approveTopic, requestTopicApproval, rejectTopic, republishModule, getSyncStatus, syncCourse, submitCourse, approveCourseReq, rejectCourse } from "@/lib/api"
+import { getCourse, addTopic, updateTopic, deleteTopic, generateTopics, approveTopic, requestTopicApproval, rejectTopic, republishModule, getSyncStatus, syncCourse, submitCourse, approveCourseReq, rejectCourse, createImportantQuestion, getImportantQuestions, deleteImportantQuestion, updateImportantQuestion, bulkImportImportantQuestions, publishImportantQuestion, requestImportantQuestionApproval, approveImportantQuestion, rejectImportantQuestion } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,7 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, CheckCircle, Loader2, FileText, Sparkles, Layers, Wand2, Clock, GitCompare, ExternalLink, Copy, Save, Eye, Edit3 } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, CheckCircle, Loader2, FileText, Sparkles, Layers, Wand2, Clock, GitCompare, ExternalLink, Copy, Save, Eye, Edit3, ChevronDown, ListCheck, HelpCircle, Edit, BookOpen, Upload, Download, Share2, XCircle, Send, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -41,7 +43,7 @@ export default function OrgCourseEditorPage() {
         }
     }
 
-    const handleApprove = async () => {
+    const handleApproveCourse = async () => {
         setActionLoading(true)
         try {
             await approveCourseReq(id)
@@ -54,7 +56,7 @@ export default function OrgCourseEditorPage() {
         }
     }
 
-    const handleReject = async () => {
+    const handleRejectCourse = async () => {
         // ideally open a dialog for reason, for now just simple reject
         const reason = prompt("Enter reason for rejection:")
         if (!reason) return
@@ -100,6 +102,12 @@ export default function OrgCourseEditorPage() {
     const [syncLoading, setSyncLoading] = useState(false)
     const [selectedUpdate, setSelectedUpdate] = useState<any>(null)
 
+    // Important Questions State
+    const [importantQuestions, setImportantQuestions] = useState<any[]>([])
+    const [qLoading, setQLoading] = useState(false)
+    const [showPreviewAnswers, setShowPreviewAnswers] = useState(false)
+    const [editingQuestion, setEditingQuestion] = useState<any>(null)
+
     const fetchCourse = async () => {
         try {
             const data = await getCourse(id)
@@ -113,12 +121,26 @@ export default function OrgCourseEditorPage() {
         }
     }
 
+    const fetchQuestions = async () => {
+        setQLoading(true)
+        try {
+            const data = await getImportantQuestions(id)
+            setImportantQuestions(data)
+        } catch (e) {
+            console.error(e)
+            // toast.error("Failed to load questions") // Fail silently if not found or empty
+        } finally {
+            setQLoading(false)
+        }
+    }
+
     useEffect(() => {
         fetchCourse()
+        fetchQuestions()
     }, [id])
 
     const handleViewContent = (topic: any) => {
-        router.push(`/org/courses/${id}/topic/${topic.id}`)
+        router.push(`/ org / courses / ${id} / topic / ${topic.id} `)
     }
 
     const handleEditTopic = async () => {
@@ -237,20 +259,84 @@ export default function OrgCourseEditorPage() {
         }
     }
 
-    const handleCheckSync = () => {
-        router.push(`/org/courses/${id}/sync`)
+    const handleCheckSync = (type: 'TOPIC' | 'QUESTION' = 'TOPIC') => {
+        router.push(`/org/courses/${id}/sync?type=${type}`)
     }
 
-    const handleSyncItem = async (libraryTopicId: string, action: string) => {
+    const handleSyncItem = async (itemId: string, action: string, type: 'TOPIC' | 'QUESTION' = 'TOPIC') => {
         try {
-            await syncCourse(id, [{ library_topic_id: libraryTopicId, action }])
-            toast.success(action === "OVERWRITE" ? "Topic updated successfully" : "Topic created successfully")
+            const payload = type === 'TOPIC'
+                ? { library_topic_id: itemId, action }
+                : { library_question_id: itemId, action, library_topic_id: undefined }
+
+            // Note: helper might default to single item in array or spread?
+            // Assuming syncCourse accepts Partial<SyncRequest['items'][0]>[]
+            // But strict typing might need explicit structure. 
+            // The backend defaults nicely.
+
+            await syncCourse(id, [payload])
+            toast.success(action === "OVERWRITE" ? `${type === 'TOPIC' ? 'Topic' : 'Question'} updated successfully` : `${type === 'TOPIC' ? 'Topic' : 'Question'} created successfully`)
             // Refresh status
-            handleCheckSync()
+            const status = await getSyncStatus(id)
+            setSyncStatus(status)
             // Refresh course data
             fetchCourse()
+            // Also refresh questions
+            fetchQuestions()
         } catch (e) {
-            toast.error("Failed to sync topic")
+            console.error(e)
+            toast.error("Failed to sync item")
+        }
+    }
+
+    const handleRequestApproval = async (q: any) => {
+        try {
+            await requestImportantQuestionApproval(params.id as string, q.id)
+            toast.success("Approval requested successfully")
+            fetchQuestions()
+        } catch (e) {
+            toast.error("Failed to request approval")
+        }
+    }
+
+    const handleApprove = async (q: any) => {
+        try {
+            await approveImportantQuestion(params.id as string, q.id)
+            toast.success("Question approved and published")
+            fetchQuestions()
+        } catch (e) {
+            toast.error("Failed to approve question")
+        }
+    }
+
+    const handleReject = async (q: any) => {
+        try {
+            await rejectImportantQuestion(params.id as string, q.id)
+            toast.success("Question returned for changes")
+            fetchQuestions()
+        } catch (e) {
+            toast.error("Failed to reject question")
+        }
+    }
+
+    const handlePublishToggle = async (q: any) => {
+        // Legacy or direct publish for Super Admins
+        try {
+            await publishImportantQuestion(params.id as string, q.id, !q.is_public)
+            toast.success(q.is_public ? "Question unpublished" : "Question published")
+            fetchQuestions()
+        } catch (e) {
+            toast.error("Failed to update status")
+        }
+    }
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'DRAFT': return <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">Draft</Badge>
+            case 'PENDING_APPROVAL': return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 animate-pulse">Pending Approval</Badge>
+            case 'CHANGES_REQUESTED': return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">Changes Requested</Badge>
+            case 'PUBLISHED': return <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">Published</Badge>
+            default: return <Badge variant="outline" className="bg-slate-100 text-slate-600">Draft</Badge>
         }
     }
 
@@ -354,7 +440,7 @@ export default function OrgCourseEditorPage() {
                             {course.status === 'PENDING_APPROVAL' && ['ORG_ADMIN', 'DEPT_HEAD', 'SUPER_ADMIN'].includes(user?.role || '') && (
                                 <>
                                     <Button
-                                        onClick={handleReject}
+                                        onClick={handleRejectCourse}
                                         disabled={actionLoading}
                                         variant="destructive"
                                         className="bg-red-500/80 hover:bg-red-600"
@@ -362,7 +448,7 @@ export default function OrgCourseEditorPage() {
                                         Reject
                                     </Button>
                                     <Button
-                                        onClick={handleApprove}
+                                        onClick={handleApproveCourse}
                                         disabled={actionLoading}
                                         className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg"
                                     >
@@ -388,7 +474,7 @@ export default function OrgCourseEditorPage() {
                             )}
                             {course.parent_course_id && (
                                 <Button
-                                    onClick={handleCheckSync}
+                                    onClick={() => handleCheckSync('TOPIC')}
                                     className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-100 border border-indigo-500/20 backdrop-blur-sm"
                                 >
                                     {syncLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GitCompare className="mr-2 h-4 w-4" />}
@@ -400,300 +486,490 @@ export default function OrgCourseEditorPage() {
                 </div>
             </div>
 
-            {/* Progress Dashboard */}
-            {topics.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Content Progress */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Content Creation</p>
-                                <h3 className="text-3xl font-bold text-slate-900 mt-1">{approvedSubtopics.length} <span className="text-lg text-slate-400 font-normal">/ {totalSubtopics} Topics</span></h3>
-                            </div>
-                            <div className="h-10 w-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
-                                <FileText className="h-5 w-5" />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-xs font-medium text-slate-600">
-                                <span>{completionPercentage}% Complete</span>
-                                <span>{totalSubtopics - approvedSubtopics.length} Pending</span>
-                            </div>
-                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${completionPercentage}%` }}></div>
-                            </div>
-                        </div>
-                    </div>
+            <Tabs defaultValue="syllabus" className="w-full space-y-8">
+                <TabsList className="flex w-full bg-slate-100 p-1 rounded-xl">
+                    <TabsTrigger value="syllabus" className="flex-1 rounded-lg px-4 py-2 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
+                        <Layers className="h-4 w-4 mr-2" /> Syllabus & Content
+                    </TabsTrigger>
+                    <TabsTrigger value="questions" className="flex-1 rounded-lg px-4 py-2 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
+                        <ListCheck className="h-4 w-4 mr-2" /> Important Questions
+                        <span className="ml-2 bg-indigo-100 text-indigo-700 py-0.5 px-2 rounded-full text-xs font-bold">
+                            {importantQuestions.length}
+                        </span>
+                    </TabsTrigger>
+                </TabsList>
 
-                    {/* Modules Ready */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Ready to Publish</p>
-                                <h3 className="text-3xl font-bold text-slate-900 mt-1">{readyToPublishCount} <span className="text-lg text-slate-400 font-normal">Modules</span></h3>
+                <TabsContent value="syllabus" className="space-y-10">
+                    {/* Progress Dashboard */}
+                    {topics.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Content Progress */}
+                            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Content Creation</p>
+                                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{approvedSubtopics.length} <span className="text-lg text-slate-400 font-normal">/ {totalSubtopics} Topics</span></h3>
+                                    </div>
+                                    <div className="h-10 w-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
+                                        <FileText className="h-5 w-5" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-xs font-medium text-slate-600">
+                                        <span>{completionPercentage}% Complete</span>
+                                        <span>{totalSubtopics - approvedSubtopics.length} Pending</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                        <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${completionPercentage}%` }}></div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${readyToPublishCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
-                                <Clock className="h-5 w-5" />
-                            </div>
-                        </div>
-                        <p className="text-sm text-slate-500">
-                            {readyToPublishCount > 0
-                                ? "Modules have all content approved and are awaiting publication."
-                                : "Approve all topics in a module to make it ready."}
-                        </p>
-                    </div>
 
-                    {/* Published */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Live Content</p>
-                                <h3 className="text-3xl font-bold text-emerald-700 mt-1">{publishedModulesCount} <span className="text-lg text-slate-400 font-normal">Modules</span></h3>
+                            {/* Modules Ready */}
+                            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Ready to Publish</p>
+                                        <h3 className="text-3xl font-bold text-slate-900 mt-1">{readyToPublishCount} <span className="text-lg text-slate-400 font-normal">Modules</span></h3>
+                                    </div>
+                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${readyToPublishCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+                                        <Clock className="h-5 w-5" />
+                                    </div>
+                                </div>
+                                <p className="text-sm text-slate-500">
+                                    {readyToPublishCount > 0
+                                        ? "Modules have all content approved and are awaiting publication."
+                                        : "Approve all topics in a module to make it ready."}
+                                </p>
                             </div>
-                            <div className="h-10 w-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
-                                <CheckCircle className="h-5 w-5" />
+
+                            {/* Published */}
+                            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Live Content</p>
+                                        <h3 className="text-3xl font-bold text-emerald-700 mt-1">{publishedModulesCount} <span className="text-lg text-slate-400 font-normal">Modules</span></h3>
+                                    </div>
+                                    <div className="h-10 w-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+                                        <CheckCircle className="h-5 w-5" />
+                                    </div>
+                                </div>
+                                <p className="text-sm text-slate-500">
+                                    Content currently accessible to students on the LMS.
+                                </p>
                             </div>
                         </div>
-                        <p className="text-sm text-slate-500">
-                            Content currently accessible to students on the LMS.
-                        </p>
-                    </div>
-                </div>
-            )}
+                    )}
 
-            {/* Main Content Area */}
-            <div className="relative z-20">
-                {/* Empty State / Initial Generation */}
-                {topics.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
-                        <div className="h-24 w-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Sparkles className="h-12 w-12 text-indigo-600" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-slate-900 mb-3">Let's build your curriculum</h2>
-                        <p className="text-slate-500 max-w-md mx-auto mb-8">
-                            Our AI can generate a complete syllabus with modules and topics based on your course details. Or you can start from scratch.
-                        </p>
-                        <div className="flex justify-center gap-4">
-                            <Button
-                                onClick={handleRegenerateTopics}
-                                disabled={generating}
-                                className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white h-12 px-8 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 transition-all hover:scale-105"
-                            >
-                                {generating ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                        Generating Syllabus...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Wand2 className="mr-2 h-5 w-5" />
-                                        Generate with AI
-                                    </>
-                                )}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-12 px-8 rounded-xl border-slate-200 text-slate-700"
-                                onClick={() => { setParentTopicForSubtopic(null); setIsAddDialogOpen(true); }}
-                            >
-                                <Plus className="mr-2 h-5 w-5" />
-                                Allow Manual Creation
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    /* Topics List */
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <Layers className="h-5 w-5 text-indigo-600" /> Course Modules
-                            </h2>
-                            <Button
-                                onClick={() => { setParentTopicForSubtopic(null); setIsAddDialogOpen(true); }}
-                                className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-200"
-                            >
-                                <Plus className="mr-2 h-4 w-4" /> Add Module
-                            </Button>
-                        </div>
+                    {/* Main Content Area */}
+                    <div className="relative z-20">
+                        {/* Empty State / Initial Generation */}
+                        {topics.length === 0 ? (
+                            <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
+                                <div className="h-24 w-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Sparkles className="h-12 w-12 text-indigo-600" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-slate-900 mb-3">Let's build your curriculum</h2>
+                                <p className="text-slate-500 max-w-md mx-auto mb-8">
+                                    Our AI can generate a complete syllabus with modules and topics based on your course details. Or you can start from scratch.
+                                </p>
+                                <div className="flex justify-center gap-4">
+                                    <Button
+                                        onClick={handleRegenerateTopics}
+                                        disabled={generating}
+                                        className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white h-12 px-8 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 transition-all hover:scale-105"
+                                    >
+                                        {generating ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                                Generating Syllabus...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Wand2 className="mr-2 h-5 w-5" />
+                                                Generate with AI
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="h-12 px-8 rounded-xl border-slate-200 text-slate-700"
+                                        onClick={() => { setParentTopicForSubtopic(null); setIsAddDialogOpen(true); }}
+                                    >
+                                        <Plus className="mr-2 h-5 w-5" />
+                                        Allow Manual Creation
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            /* Topics List */
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                        <Layers className="h-5 w-5 text-indigo-600" /> Course Modules
+                                    </h2>
+                                    <Button
+                                        onClick={() => { setParentTopicForSubtopic(null); setIsAddDialogOpen(true); }}
+                                        className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-200"
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" /> Add Module
+                                    </Button>
+                                </div>
 
-                        <div className="grid gap-6">
-                            {topics
-                                .filter((topic: any) => !topic.parent_topic_id)
-                                .sort((a: any, b: any) => a.order - b.order)
-                                .map((parentTopic: any) => {
-                                    const subTopics = topics
-                                        .filter((t: any) => t.parent_topic_id === parentTopic.id)
+                                <div className="grid gap-6">
+                                    {topics
+                                        .filter((topic: any) => !topic.parent_topic_id)
                                         .sort((a: any, b: any) => a.order - b.order)
+                                        .map((parentTopic: any) => {
+                                            const subTopics = topics
+                                                .filter((t: any) => t.parent_topic_id === parentTopic.id)
+                                                .sort((a: any, b: any) => a.order - b.order)
 
-                                    return (
-                                        <div key={parentTopic.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
-                                            <div className="bg-slate-50/50 border-b border-slate-100 p-5 px-6">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div>
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-100/50 text-indigo-700 font-bold text-sm">
-                                                                {parentTopic.order}
-                                                            </span>
-                                                            <h3 className="text-lg font-bold text-slate-900">{parentTopic.title}</h3>
-                                                            {!parentTopic.is_published && (
-                                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full">Draft</span>
-                                                            )}
-                                                            {parentTopic.is_published && (
-                                                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full flex items-center gap-1">
-                                                                    <CheckCircle className="h-3 w-3" /> Live
-                                                                </span>
-                                                            )}
-                                                            {/* Pending Updates Badge */}
-                                                            {!parentTopic.is_published && course?.has_pending_updates && (
-                                                                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full flex items-center gap-1">
-                                                                    <Clock className="h-3 w-3" /> Pending Updates
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-slate-500 text-sm mt-2 ml-11 max-w-3xl">{parentTopic.description}</p>
-                                                    </div>
-                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button variant="ghost" size="icon" onClick={() => { setEditingTopic(parentTopic); setIsEditDialogOpen(true); }}>
-                                                            <Pencil className="h-4 w-4 text-slate-400 hover:text-indigo-600" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" onClick={() => { setTopicToDelete(parentTopic); setIsDeleteDialogOpen(true); }}>
-                                                            <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-600" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-4 ml-11 flex gap-3">
-                                                    {/* Only HODs and Admins can publish modules */}
-                                                    {!parentTopic.is_published && subTopics.length > 0 && subTopics.every((t: any) => t.status === 'APPROVED') && user?.role !== 'TEACHER' && (
-                                                        <Button
-                                                            size="sm"
-                                                            onClick={() => course?.has_pending_updates
-                                                                ? handleRepublishModule(parentTopic.id, parentTopic.title)
-                                                                : handlePublishModule(parentTopic.id, parentTopic.title)
-                                                            }
-                                                            className={course?.has_pending_updates
-                                                                ? "bg-orange-600 hover:bg-orange-700 text-white h-9"
-                                                                : "bg-emerald-600 hover:bg-emerald-700 text-white h-9"
-                                                            }
-                                                            disabled={isPublishing}
-                                                        >
-                                                            {isPublishing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <CheckCircle className="h-3 w-3 mr-2" />}
-                                                            {course?.has_pending_updates ? "Review & Re-Publish" : "Publish Module"}
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => {
-                                                            setParentTopicForSubtopic(parentTopic);
-                                                            setNewTopicData({ title: "", description: "", order: subTopics.length + 1 });
-                                                            setIsAddDialogOpen(true);
-                                                        }}
-                                                        className="h-9"
-                                                    >
-                                                        <Plus className="h-3 w-3 mr-2" />
-                                                        Add Topic
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            {subTopics.length > 0 && (
-                                                <div className="divide-y divide-slate-50">
-                                                    {subTopics.map((topic: any) => (
-                                                        <div key={topic.id} className="p-4 pl-16 pr-6 flex items-center justify-between hover:bg-indigo-50/30 transition-colors group/topic">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="h-1.5 w-1.5 rounded-full bg-slate-300 group-hover/topic:bg-indigo-400"></div>
-                                                                <div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-sm font-semibold text-slate-700">{topic.title}</span>
-                                                                        {topic.status === 'APPROVED' && <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />}
-                                                                        {topic.status !== 'APPROVED' && <div className="h-2 w-2 rounded-full bg-amber-400"></div>}
-
-                                                                        {/* Content Status Indicator */}
-                                                                        {topic.has_content ? (
-                                                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                                                                <FileText className="h-3 w-3" /> Content
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                                                                <FileText className="h-3 w-3" /> Empty
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 max-w-md">
-                                                                        <p className="text-xs text-slate-400 truncate">{topic.description}</p>
-                                                                        {topic.description && (
-                                                                            <Popover>
-                                                                                <PopoverTrigger asChild>
-                                                                                    <Button variant="ghost" size="icon" className="h-4 w-4 shrink-0 text-slate-400 hover:text-indigo-600">
-                                                                                        <Eye className="h-3 w-3" />
-                                                                                        <span className="sr-only">View Description</span>
-                                                                                    </Button>
-                                                                                </PopoverTrigger>
-                                                                                <PopoverContent className="w-80 p-4" align="start">
-                                                                                    <h4 className="font-semibold text-sm mb-2 text-slate-900">{topic.title}</h4>
-                                                                                    <p className="text-sm text-slate-600 leading-relaxed">{topic.description}</p>
-                                                                                </PopoverContent>
-                                                                            </Popover>
-                                                                        )}
-                                                                    </div>
+                                            return (
+                                                <div key={parentTopic.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
+                                                    <div className="bg-slate-50/50 border-b border-slate-100 p-5 px-6">
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div>
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-100/50 text-indigo-700 font-bold text-sm">
+                                                                        {parentTopic.order}
+                                                                    </span>
+                                                                    <h3 className="text-lg font-bold text-slate-900">{parentTopic.title}</h3>
+                                                                    {!parentTopic.is_published && (
+                                                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full">Draft</span>
+                                                                    )}
+                                                                    {parentTopic.is_published && (
+                                                                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                                                                            <CheckCircle className="h-3 w-3" /> Live
+                                                                        </span>
+                                                                    )}
+                                                                    {/* Pending Updates Badge */}
+                                                                    {!parentTopic.is_published && course?.has_pending_updates && (
+                                                                        <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                                                                            <Clock className="h-3 w-3" /> Pending Updates
+                                                                        </span>
+                                                                    )}
                                                                 </div>
+                                                                <p className="text-slate-500 text-sm mt-2 ml-11 max-w-3xl">{parentTopic.description}</p>
                                                             </div>
-                                                            <div className="flex items-center gap-3">
+                                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button variant="ghost" size="icon" onClick={() => { setEditingTopic(parentTopic); setIsEditDialogOpen(true); }}>
+                                                                    <Pencil className="h-4 w-4 text-slate-400 hover:text-indigo-600" />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon" onClick={() => { setTopicToDelete(parentTopic); setIsDeleteDialogOpen(true); }}>
+                                                                    <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-600" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-4 ml-11 flex gap-3">
+                                                            {/* Only HODs and Admins can publish modules */}
+                                                            {!parentTopic.is_published && subTopics.length > 0 && subTopics.every((t: any) => t.status === 'APPROVED') && user?.role !== 'TEACHER' && (
                                                                 <Button
                                                                     size="sm"
-                                                                    variant="outline"
-                                                                    className={topic.status === 'APPROVED' ? "border-emerald-200 text-emerald-700 bg-emerald-50" : "bg-white border-slate-200 hover:border-indigo-300 hover:text-indigo-600"}
-                                                                    onClick={() => handleViewContent(topic)}
+                                                                    onClick={() => course?.has_pending_updates
+                                                                        ? handleRepublishModule(parentTopic.id, parentTopic.title)
+                                                                        : handlePublishModule(parentTopic.id, parentTopic.title)
+                                                                    }
+                                                                    className={course?.has_pending_updates
+                                                                        ? "bg-orange-600 hover:bg-orange-700 text-white h-9"
+                                                                        : "bg-emerald-600 hover:bg-emerald-700 text-white h-9"
+                                                                    }
+                                                                    disabled={isPublishing}
                                                                 >
-                                                                    <Edit3 className="h-3 w-3 mr-2" />
-                                                                    {topic.status === 'APPROVED' ? " Edit / Review" : "Manage Content"}
+                                                                    {isPublishing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <CheckCircle className="h-3 w-3 mr-2" />}
+                                                                    {course?.has_pending_updates ? "Review & Re-Publish" : "Publish Module"}
                                                                 </Button>
+                                                            )}
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => {
+                                                                    setParentTopicForSubtopic(parentTopic);
+                                                                    setNewTopicData({ title: "", description: "", order: subTopics.length + 1 });
+                                                                    setIsAddDialogOpen(true);
+                                                                }}
+                                                                className="h-9"
+                                                            >
+                                                                <Plus className="h-3 w-3 mr-2" />
+                                                                Add Topic
+                                                            </Button>
+                                                        </div>
+                                                    </div>
 
-                                                                {/* Request Approval Button for Teachers (when DRAFT and has content) */}
-                                                                {user?.role === 'TEACHER' && topic.status === 'DRAFT' && topic.has_content && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handleRequestTopicApproval(topic.id, topic.title)}
-                                                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                                                        disabled={actionLoading}
-                                                                    >
-                                                                        {actionLoading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <CheckCircle className="h-3 w-3 mr-2" />}
-                                                                        Request Approval
-                                                                    </Button>
-                                                                )}
-                                                                {/* Topic status badges */}
-                                                                {topic.status === 'PENDING_APPROVAL' && (
-                                                                    <span className="px-2 py-1 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-md">
-                                                                        Pending Review
-                                                                    </span>
-                                                                )}
-                                                                {topic.status === 'REJECTED' && (
-                                                                    <span className="px-2 py-1 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-md">
-                                                                        Rejected
-                                                                    </span>
-                                                                )}
+                                                    {subTopics.length > 0 && (
+                                                        <div className="divide-y divide-slate-50">
+                                                            {subTopics.map((topic: any) => (
+                                                                <div key={topic.id} className="p-4 pl-16 pr-6 flex items-center justify-between hover:bg-indigo-50/30 transition-colors group/topic">
+                                                                    <div className="flex items-center gap-4">
+                                                                        <div className="h-1.5 w-1.5 rounded-full bg-slate-300 group-hover/topic:bg-indigo-400"></div>
+                                                                        <div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-sm font-semibold text-slate-700">{topic.title}</span>
+                                                                                {topic.status === 'APPROVED' && <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />}
+                                                                                {topic.status !== 'APPROVED' && <div className="h-2 w-2 rounded-full bg-amber-400"></div>}
 
-                                                                <div className="flex gap-1 opacity-0 group-hover/topic:opacity-100 transition-opacity">
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTopic(topic); setIsEditDialogOpen(true); }}>
-                                                                        <Pencil className="h-3.5 w-3.5 text-slate-400" />
-                                                                    </Button>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setTopicToDelete(topic); setIsDeleteDialogOpen(true); }}>
-                                                                        <Trash2 className="h-3.5 w-3.5 text-slate-400 hover:text-red-500" />
-                                                                    </Button>
+                                                                                {/* Content Status Indicator */}
+                                                                                {topic.has_content ? (
+                                                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                                                                        <FileText className="h-3 w-3" /> Content
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                                                                        <FileText className="h-3 w-3" /> Empty
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2 max-w-md">
+                                                                                <p className="text-xs text-slate-400 truncate">{topic.description}</p>
+                                                                                {topic.description && (
+                                                                                    <Popover>
+                                                                                        <PopoverTrigger asChild>
+                                                                                            <Button variant="ghost" size="icon" className="h-4 w-4 shrink-0 text-slate-400 hover:text-indigo-600">
+                                                                                                <Eye className="h-3 w-3" />
+                                                                                                <span className="sr-only">View Description</span>
+                                                                                            </Button>
+                                                                                        </PopoverTrigger>
+                                                                                        <PopoverContent className="w-80 p-4" align="start">
+                                                                                            <h4 className="font-semibold text-sm mb-2 text-slate-900">{topic.title}</h4>
+                                                                                            <p className="text-sm text-slate-600 leading-relaxed">{topic.description}</p>
+                                                                                        </PopoverContent>
+                                                                                    </Popover>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className={topic.status === 'APPROVED' ? "border-emerald-200 text-emerald-700 bg-emerald-50" : "bg-white border-slate-200 hover:border-indigo-300 hover:text-indigo-600"}
+                                                                            onClick={() => handleViewContent(topic)}
+                                                                        >
+                                                                            <Edit3 className="h-3 w-3 mr-2" />
+                                                                            {topic.status === 'APPROVED' ? " Edit / Review" : "Manage Content"}
+                                                                        </Button>
+
+                                                                        {/* Request Approval Button for Teachers (when DRAFT and has content) */}
+                                                                        {user?.role === 'TEACHER' && topic.status === 'DRAFT' && topic.has_content && (
+                                                                            <Button
+                                                                                size="sm"
+                                                                                onClick={() => handleRequestTopicApproval(topic.id, topic.title)}
+                                                                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                                                disabled={actionLoading}
+                                                                            >
+                                                                                {actionLoading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <CheckCircle className="h-3 w-3 mr-2" />}
+                                                                                Request Approval
+                                                                            </Button>
+                                                                        )}
+                                                                        {/* Topic status badges */}
+                                                                        {topic.status === 'PENDING_APPROVAL' && (
+                                                                            <span className="px-2 py-1 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-md">
+                                                                                Pending Review
+                                                                            </span>
+                                                                        )}
+                                                                        {topic.status === 'REJECTED' && (
+                                                                            <span className="px-2 py-1 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-md">
+                                                                                Rejected
+                                                                            </span>
+                                                                        )}
+
+                                                                        <div className="flex gap-1 opacity-0 group-hover/topic:opacity-100 transition-opacity">
+                                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTopic(topic); setIsEditDialogOpen(true); }}>
+                                                                                <Pencil className="h-3.5 w-3.5 text-slate-400" />
+                                                                            </Button>
+                                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setTopicToDelete(topic); setIsDeleteDialogOpen(true); }}>
+                                                                                <Trash2 className="h-3.5 w-3.5 text-slate-400 hover:text-red-500" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="questions">
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-900">Important Questions</h1>
+                                <p className="text-slate-500 text-sm">Key questions for students to focus on.</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 mr-4">
+                                    <span className="text-sm font-medium text-slate-600">Preview Answers</span>
+                                    <Button
+                                        variant={showPreviewAnswers ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setShowPreviewAnswers(!showPreviewAnswers)}
+                                        className={showPreviewAnswers ? "bg-indigo-600 text-white" : ""}
+                                    >
+                                        {showPreviewAnswers ? <Eye className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2 text-slate-400" />}
+                                        {showPreviewAnswers ? "Visible" : "Hidden"}
+                                    </Button>
+                                </div>
+                                {course.parent_course_id && (
+                                    <Button
+                                        onClick={() => handleCheckSync('QUESTION')}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                    >
+                                        <GitCompare className="h-4 w-4 mr-2" />
+                                        Sync Questions
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        {qLoading ? (
+                            <div className="text-center py-20 text-slate-500">Loading questions...</div>
+                        ) : importantQuestions.length === 0 ? (
+                            <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
+                                <FileText className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-medium text-slate-900">No Important Questions Yet</h3>
+                                <p className="text-slate-500 max-w-sm mx-auto mt-2">
+                                    Questions will appear here when synced from the Central Library or added.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {['MCQ', 'TRUE_FALSE', 'SHORT_ANSWER', 'LONG_ANSWER'].map((type) => {
+                                    const typeQuestions = importantQuestions.filter((q: any) => q.content?.type === type);
+                                    if (typeQuestions.length === 0) return null;
+
+                                    return (
+                                        <Collapsible key={type} defaultOpen className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                            <CollapsibleTrigger className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-8 w-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                                        {type === 'MCQ' && <ListCheck className="h-4 w-4" />}
+                                                        {type === 'TRUE_FALSE' && <CheckCircle className="h-4 w-4" />}
+                                                        {type === 'SHORT_ANSWER' && <FileText className="h-4 w-4" />}
+                                                        {type === 'LONG_ANSWER' && <FileText className="h-4 w-4" />}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <h3 className="font-semibold text-slate-900">{type.replace('_', ' ')}</h3>
+                                                        <p className="text-xs text-slate-500">{typeQuestions.length} Questions</p>
+                                                    </div>
+                                                </div>
+                                                <ChevronDown className="h-4 w-4 text-slate-400 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent>
+                                                <div className="divide-y divide-slate-100">
+                                                    {typeQuestions.map((q: any, i: number) => (
+                                                        <div key={q.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                                            <div className="flex gap-4">
+                                                                <span className="flex-none text-xs font-mono text-slate-400 pt-1">
+                                                                    {(i + 1).toString().padStart(2, '0')}
+                                                                </span>
+                                                                <div className="flex-1 space-y-3">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div className="flex items-center gap-2">
+                                                                            {getStatusBadge(q.status || 'DRAFT')}
+                                                                            <h4 className="font-medium text-slate-900">{q.title}</h4>
+                                                                        </div>
+                                                                        <div className="flex gap-2 items-center">
+                                                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 uppercase">
+                                                                                {q.content?.marks} Marks
+                                                                            </span>
+                                                                            {q.source_question_id && (
+                                                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 flex items-center gap-1">
+                                                                                    <RefreshCw className="h-3 w-3" /> Synced
+                                                                                </span>
+                                                                            )}
+
+                                                                            {/* Action Buttons */}
+                                                                            <div className="flex items-center gap-1 ml-2">
+                                                                                {/* Teacher Actions: Draft/ChangesRequested -> Request Approval */}
+                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') &&
+                                                                                    (q.status === 'DRAFT' || q.status === 'CHANGES_REQUESTED' || !q.status) && (
+                                                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-indigo-600" onClick={() => handleRequestApproval(q)} title="Request Approval">
+                                                                                            <Send className="h-3.5 w-3.5" />
+                                                                                        </Button>
+                                                                                    )}
+
+                                                                                {/* Admin Actions: Pending -> Approve/Reject */}
+                                                                                {(user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'DEPT_HEAD') &&
+                                                                                    q.status === 'PENDING_APPROVAL' && (
+                                                                                        <>
+                                                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" onClick={() => handleApprove(q)} title="Approve">
+                                                                                                <CheckCircle className="h-3.5 w-3.5" />
+                                                                                            </Button>
+                                                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleReject(q)} title="Reject">
+                                                                                                <XCircle className="h-3.5 w-3.5" />
+                                                                                            </Button>
+                                                                                        </>
+                                                                                    )}
+
+                                                                                {/* Publish Toggle (Legacy/Admin) */}
+                                                                                {(user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && q.status === 'PUBLISHED' && (
+                                                                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handlePublishToggle(q)} title={q.is_public ? "Unpublish" : "Publish"}>
+                                                                                        {q.is_public ? <EyeOff className="h-3.5 w-3.5 text-slate-400" /> : <Eye className="h-3.5 w-3.5 text-emerald-600" />}
+                                                                                    </Button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                                        {q.content?.question}
+                                                                    </p>
+
+                                                                    {/* Options for MCQ */}
+                                                                    {
+                                                                        q.content?.type === 'MCQ' && q.content?.options && (
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                                                                                {q.content.options.map((opt: string, idx: number) => (
+                                                                                    <div key={idx} className={`text-sm px-3 py-2 rounded border ${showPreviewAnswers && opt === q.content?.answer ? "bg-emerald-50 border-emerald-200 text-emerald-700 font-medium" : "bg-white border-slate-200 text-slate-600"}`}>
+                                                                                        <span className="mr-2 text-slate-400">{String.fromCharCode(65 + idx)}.</span>
+                                                                                        {opt}
+                                                                                        {showPreviewAnswers && opt === q.content?.answer && <CheckCircle className="h-3 w-3 inline ml-2" />}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )
+                                                                    }
+
+                                                                    {/* Answer Section */}
+                                                                    {showPreviewAnswers && (
+                                                                        <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                                            <div className="flex gap-4">
+                                                                                <div className="flex-1">
+                                                                                    <p className="text-xs font-bold text-emerald-600 uppercase mb-1">Correct Answer</p>
+                                                                                    <p className="text-sm font-medium text-slate-800">{q.content?.answer || "True"}</p>
+                                                                                </div>
+                                                                                {q.content?.explanation && (
+                                                                                    <div className="flex-[2] border-l border-slate-100 pl-4">
+                                                                                        <p className="text-xs font-bold text-indigo-600 uppercase mb-1">Explanation</p>
+                                                                                        <p className="text-sm text-slate-600 italic">"{q.content.explanation}"</p>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
-                                            )}
-                                        </div>
-                                    )
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    );
                                 })}
-                        </div>
-                    </div>
-                )}
-            </div>
+                            </div>
+                        )}
+                    </div >
+                </TabsContent >
+            </Tabs >
 
             <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
                 <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -711,66 +987,74 @@ export default function OrgCourseEditorPage() {
                             <p className="text-slate-500">The following updates are available from the Central Library. Review and sync individually.</p>
 
                             <div className="grid gap-4">
-                                {syncStatus?.updates.map((update: any, index: number) => (
-                                    <div key={index} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${update.type === 'NEW' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                        {update.type}
-                                                    </span>
-                                                    <h4 className="font-semibold text-slate-900">{update.library_topic.title}</h4>
-                                                </div>
-                                                <p className="text-sm text-slate-500 mt-1">{update.message}</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {update.type === 'NEW' ? (
-                                                    <Button size="sm" onClick={() => handleSyncItem(update.library_topic.id, 'CREATE')} disabled={syncLoading}>
-                                                        {syncLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Plus className="mr-2 h-3 w-3" />} Add to Course
-                                                    </Button>
-                                                ) : (
-                                                    <Button size="sm" variant="outline" onClick={() => setSelectedUpdate(selectedUpdate === update ? null : update)} disabled={syncLoading}>
-                                                        {selectedUpdate === update ? 'Hide Diff' : 'Review Differences'}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
+                                {syncStatus?.updates.map((update: any, index: number) => {
+                                    const isQuestion = !!update.library_question;
+                                    const title = isQuestion ? update.library_question.title : update.library_topic?.title;
+                                    const id = isQuestion ? update.library_question.id : update.library_topic?.id;
+                                    const typeLabel = isQuestion ? 'QUESTION' : 'TOPIC';
 
-                                        {/* Diff View */}
-                                        {selectedUpdate === update && update.type === 'UPDATE_AVAILABLE' && (
-                                            <div className="mt-4 bg-white rounded-lg border border-slate-200 overflow-hidden">
-                                                <div className="grid grid-cols-2 text-xs font-semibold text-slate-500 border-b border-slate-200">
-                                                    <div className="p-2 bg-slate-50 border-r border-slate-200">Library Version (New)</div>
-                                                    <div className="p-2 bg-slate-50">Your Version (Current)</div>
-                                                </div>
-                                                <div className="grid grid-cols-2 text-sm">
-                                                    <div className="p-4 border-r border-slate-200 bg-emerald-50/10 text-slate-800 whitespace-pre-wrap font-mono text-xs">
-                                                        {update.library_content}
+                                    return (
+                                        <div key={index} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${update.type === 'NEW' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                            {update.type}
+                                                        </span>
+                                                        {isQuestion && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">QUESTION</span>}
+                                                        <h4 className="font-semibold text-slate-900">{title}</h4>
                                                     </div>
-                                                    <div className="p-4 bg-amber-50/10 text-slate-800 whitespace-pre-wrap font-mono text-xs">
-                                                        {update.local_content}
-                                                    </div>
+                                                    <p className="text-sm text-slate-500 mt-1">{update.message}</p>
                                                 </div>
-                                                <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(update.library_content)
-                                                            toast.success("Library content copied to clipboard")
-                                                        }}
-                                                        disabled={syncLoading}
-                                                    >
-                                                        <Copy className="mr-2 h-3 w-3" /> Copy New Content
-                                                    </Button>
-                                                    <Button size="sm" onClick={() => handleSyncItem(update.library_topic.id, 'OVERWRITE')} disabled={syncLoading}>
-                                                        {syncLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Overwrite Mine
-                                                    </Button>
+                                                <div className="flex gap-2">
+                                                    {update.type === 'NEW' ? (
+                                                        <Button size="sm" onClick={() => handleSyncItem(id, 'CREATE', isQuestion ? 'QUESTION' : 'TOPIC')} disabled={syncLoading}>
+                                                            {syncLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Plus className="mr-2 h-3 w-3" />} Add to Course
+                                                        </Button>
+                                                    ) : (
+                                                        <Button size="sm" variant="outline" onClick={() => setSelectedUpdate(selectedUpdate === update ? null : update)} disabled={syncLoading}>
+                                                            {selectedUpdate === update ? 'Hide Diff' : 'Review Differences'}
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
+
+                                            {/* Diff View */}
+                                            {selectedUpdate === update && update.type === 'UPDATE_AVAILABLE' && (
+                                                <div className="mt-4 bg-white rounded-lg border border-slate-200 overflow-hidden">
+                                                    <div className="grid grid-cols-2 text-xs font-semibold text-slate-500 border-b border-slate-200">
+                                                        <div className="p-2 bg-slate-50 border-r border-slate-200">Library Version (New)</div>
+                                                        <div className="p-2 bg-slate-50">Your Version (Current)</div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 text-sm">
+                                                        <div className="p-4 border-r border-slate-200 bg-emerald-50/10 text-slate-800 whitespace-pre-wrap font-mono text-xs">
+                                                            {update.library_content}
+                                                        </div>
+                                                        <div className="p-4 bg-amber-50/10 text-slate-800 whitespace-pre-wrap font-mono text-xs">
+                                                            {update.local_content}
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(update.library_content)
+                                                                toast.success("Library content copied to clipboard")
+                                                            }}
+                                                            disabled={syncLoading}
+                                                        >
+                                                            <Copy className="mr-2 h-3 w-3" /> Copy New Content
+                                                        </Button>
+                                                        <Button size="sm" onClick={() => handleSyncItem(id, 'OVERWRITE', isQuestion ? 'QUESTION' : 'TOPIC')} disabled={syncLoading}>
+                                                            {syncLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />} Overwrite Mine
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -861,6 +1145,6 @@ export default function OrgCourseEditorPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     )
 }

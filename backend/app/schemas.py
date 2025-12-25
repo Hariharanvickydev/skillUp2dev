@@ -349,7 +349,8 @@ class Course(CourseBase):
 
 # --- SYNC SCHEMAS ---
 class SyncItem(BaseModel):
-    library_topic_id: UUID
+    library_topic_id: Optional[UUID] = None
+    library_question_id: Optional[UUID] = None
     action: str  # OVERWRITE, CREATE, IGNORE
 
 class SyncRequest(BaseModel):
@@ -450,3 +451,43 @@ class ExamResult(BaseModel):
     attempt_id: UUID
 
 
+# Important Questions Schemas
+class QuestionType(str, Enum):
+    MCQ = "MCQ"
+    TRUE_FALSE = "TRUE_FALSE"
+    SHORT_ANSWER = "SHORT_ANSWER"
+    LONG_ANSWER = "LONG_ANSWER"
+
+class ImportantQuestionBase(BaseModel):
+    title: str
+    module_id: Optional[UUID] = None
+    content: Dict[str, Any] # Detailed content: question, options, answer, explanation
+    is_public: bool = False # Used as is_published status
+
+class ImportantQuestionCreate(ImportantQuestionBase):
+    pass
+
+class ImportantQuestionUpdate(ImportantQuestionBase):
+    title: Optional[str] = None
+    module_id: Optional[UUID] = None
+    content: Optional[Dict[str, Any]] = None
+    is_public: Optional[bool] = None
+    status: Optional[str] = None
+
+class ImportantQuestion(ImportantQuestionBase):
+    id: UUID
+    course_id: UUID
+    created_by_user_id: UUID
+    created_at: datetime
+    status: str = "DRAFT"
+    source_question_id: Optional[UUID] = None
+    
+    class Config:
+        orm_mode = True
+
+class ImportantQuestionBulkImport(BaseModel):
+    questions: List[ImportantQuestionCreate]
+
+class BulkImportResponse(BaseModel):
+    imported_count: int
+    errors: List[str]

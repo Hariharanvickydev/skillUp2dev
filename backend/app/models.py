@@ -38,6 +38,13 @@ class CreationMode(str, enum.Enum):
     MANUAL = "MANUAL"
     IMPORT = "IMPORT"
 
+class QuestionStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
+    CHANGES_REQUESTED = "CHANGES_REQUESTED"
+    PUBLISHED = "PUBLISHED"
+
 class Organization(Base):
     __tablename__ = "organizations"
 
@@ -315,7 +322,9 @@ class ImportantQuestions(Base):
     created_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
     content = Column(JSON, nullable=False) # Array of Q&A
     is_public = Column(Boolean, default=False)
+    status = Column(String, default=QuestionStatus.DRAFT.value) # DRAFT, PENDING_APPROVAL, PUBLISHED
     created_at = Column(DateTime, server_default=func.now())
+    source_question_id = Column(Uuid(as_uuid=True), nullable=True) # Link to library question
 
     course = relationship("Course", back_populates="important_questions")
     creator = relationship("User")

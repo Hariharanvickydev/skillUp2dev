@@ -335,3 +335,54 @@ export const importLibraryCourse = async (courseId: string, targetOrgId: string)
     const response = await api.post(`/library/courses/${courseId}/import?target_org_id=${targetOrgId}`);
     return response.data;
 };
+
+// --- Important Questions ---
+export const createImportantQuestion = async (courseId: string, data: any) => {
+    const response = await api.post(`/courses/${courseId}/important-questions`, data);
+    return response.data;
+};
+
+export const getImportantQuestions = async (courseId: string, params?: { module_id?: string }) => {
+    const response = await api.get(`/courses/${courseId}/important-questions`, { params });
+    return response.data;
+};
+
+export const getImportantQuestion = async (courseId: string, questionId: string) => {
+    const response = await api.get(`/courses/${courseId}/important-questions/${questionId}`);
+    return response.data;
+};
+
+export const updateImportantQuestion = async (courseId: string, questionId: string, data: any) => {
+    const response = await api.put(`/courses/${courseId}/important-questions/${questionId}`, data);
+    return response.data;
+};
+
+export const deleteImportantQuestion = async (courseId: string, questionId: string) => {
+    const response = await api.delete(`/courses/${courseId}/important-questions/${questionId}`);
+    return response.data;
+};
+
+export const bulkImportImportantQuestions = async (courseId: string, questions: any[]) => {
+    const response = await api.post(`/courses/${courseId}/important-questions/bulk-import`, { questions });
+    return response.data;
+};
+
+export const publishImportantQuestion = async (courseId: string, questionId: string, isPublic: boolean) => {
+    const response = await api.patch(`/courses/${courseId}/important-questions/${questionId}/publish`, { is_public: isPublic });
+    return response.data;
+};
+
+export const requestImportantQuestionApproval = async (courseId: string, questionId: string) => {
+    const response = await api.post(`/courses/${courseId}/important-questions/${questionId}/request-approval`);
+    return response.data;
+};
+
+export const approveImportantQuestion = async (courseId: string, questionId: string) => {
+    const response = await api.post(`/courses/${courseId}/important-questions/${questionId}/approve`);
+    return response.data;
+};
+
+export const rejectImportantQuestion = async (courseId: string, questionId: string) => {
+    const response = await api.post(`/courses/${courseId}/important-questions/${questionId}/reject`);
+    return response.data;
+};
