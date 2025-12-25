@@ -177,146 +177,233 @@ export default function LibraryPreviewPage() {
                 </div>
             </header>
 
-            <div className="flex-1 flex overflow-hidden">
-                {/* Sidebar - Topic List */}
-                <div className="w-80 border-r border-slate-200 bg-slate-50 flex flex-col">
-                    <div className="p-4 border-b bg-white/50 backdrop-blur-sm sticky top-0 z-10">
-                        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Course Modules</h2>
+            <div className="flex-1 overflow-y-auto p-8 lg:p-12 bg-slate-50">
+                <div className="max-w-5xl mx-auto">
+                    {/* Course Header */}
+                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-6">
+                        <Badge className="mb-3">{course?.category}</Badge>
+                        <h1 className="text-3xl font-bold text-slate-900 mb-2">{course?.title}</h1>
+                        <p className="text-slate-600">{course?.description}</p>
                     </div>
-                    <ScrollArea className="flex-1">
-                        <div className="p-4 space-y-1">
+
+                    {/* Tabbed Content */}
+                    <Tabs defaultValue="overview" className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <TabsList className="w-full grid grid-cols-4 rounded-none border-b">
+                            <TabsTrigger value="overview">Overview</TabsTrigger>
+                            <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
+                            <TabsTrigger value="sample">Sample</TabsTrigger>
+                            <TabsTrigger value="exams">Exams</TabsTrigger>
+                        </TabsList>
+
+                        {/* Overview Tab */}
+                        <TabsContent value="overview" className="p-8 space-y-6">
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Layers className="h-6 w-6 text-indigo-500" />
+                                    <div className="text-center">
+                                        <span className="font-bold block text-2xl text-slate-900">{course?.topics?.length || 0}</span>
+                                        <span className="text-xs text-slate-500">Modules</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Star className="h-6 w-6 text-orange-500" />
+                                    <div className="text-center">
+                                        <span className="font-bold block text-2xl text-slate-900">{course?.difficulty || 'N/A'}</span>
+                                        <span className="text-xs text-slate-500">Level</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Clock className="h-6 w-6 text-emerald-500" />
+                                    <div className="text-center">
+                                        <span className="font-bold block text-2xl text-slate-900">~{Math.ceil((course?.topics?.length || 0) * 2)}h</span>
+                                        <span className="text-xs text-slate-500">Duration</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Outcomes */}
+                            {course?.outcomes?.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                        <Tag className="h-4 w-4 text-emerald-600" /> What Students Will Learn
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {course.outcomes.map((outcome: string, idx: number) => (
+                                            <li key={idx} className="flex gap-2 text-sm text-slate-600">
+                                                <Check className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                                                <span>{outcome}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        {/* Syllabus Tab */}
+                        <TabsContent value="syllabus" className="p-8 space-y-2">
+                            <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                                <BookOpen className="h-4 w-4 text-indigo-600" /> Full Course Syllabus
+                            </h4>
                             {(() => {
-                                // Hierarchical Sorting Helper
                                 const getSortedTopics = (topics: any[]) => {
                                     if (!topics) return []
                                     const modules = topics.filter((t: any) => !t.parent_topic_id).sort((a: any, b: any) => a.order - b.order)
                                     const subtopics = topics.filter((t: any) => t.parent_topic_id)
-
                                     const sorted: any[] = []
                                     modules.forEach((mod: any) => {
-                                        sorted.push(mod)
-                                        // Find children for this module
-                                        const children = subtopics
-                                            .filter((t: any) => t.parent_topic_id === mod.id)
-                                            .sort((a: any, b: any) => a.order - b.order)
-                                        sorted.push(...children)
+                                        sorted.push({ ...mod, children: subtopics.filter((t: any) => t.parent_topic_id === mod.id).sort((a: any, b: any) => a.order - b.order) })
                                     })
                                     return sorted
                                 }
+                                const sortedModules = getSortedTopics(course?.topics)
 
-                                const sortedTopics = getSortedTopics(course?.topics)
-
-                                return sortedTopics.map((topic: any) => {
-                                    const isSelected = selectedTopic?.id === topic.id
-                                    const isParent = !topic.parent_topic_id
-
-                                    if (isParent) {
-                                        return (
-                                            <div
-                                                key={topic.id}
-                                                className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-start gap-3 font-semibold text-slate-800 mt-4 first:mt-0 select-none"
-                                            >
-                                                <span className="mt-0.5 text-xs font-mono opacity-50 flex-shrink-0 w-6">
-                                                    {topic.order}
-                                                </span>
-                                                <span className="line-clamp-2">{topic.title}</span>
-                                            </div>
-                                        )
-                                    }
-
-                                    return (
-                                        <button
-                                            key={topic.id}
-                                            onClick={() => handleSelectTopic(topic)}
-                                            className={cn(
-                                                "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-start gap-3 pl-8",
-                                                isSelected ? "bg-indigo-100 text-indigo-900 font-medium" : "hover:bg-slate-100 text-slate-600"
-                                            )}
-                                        >
-                                            <span className="mt-0.5 text-xs font-mono opacity-50 flex-shrink-0 w-6">
-                                                {topic.order}
-                                            </span>
-                                            <span className="line-clamp-2">{topic.title}</span>
-                                        </button>
-                                    )
-                                })
-                            })()}
-                        </div>
-                    </ScrollArea>
-                </div>
-
-                {/* Main Content - Preview */}
-                <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
-                    {/* Watermark/Banner */}
-                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-20" />
-
-                    <div className="flex-1 overflow-y-auto p-8 lg:p-12">
-                        {contentLoading ? (
-                            <div className="flex h-full items-center justify-center opacity-50">
-                                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                            </div>
-                        ) : (
-                            <div className="max-w-3xl mx-auto">
-                                <div className="mb-8 pb-4 border-b">
-                                    <h2 className="text-3xl font-bold text-slate-900 mb-2">{selectedTopic?.title}</h2>
-                                    <p className="text-slate-500">{selectedTopic?.description}</p>
-                                </div>
-                                <article className="prose prose-slate prose-lg max-w-none">
-                                    <Markdown
-                                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                                        components={{
-                                            h1: ({ ...props }) => <h1 className="text-3xl font-bold text-slate-900 mt-0 mb-4 pb-2 border-b" {...props} />,
-                                            h2: ({ ...props }) => <h2 className="text-2xl font-bold text-slate-800 mt-8 mb-4" {...props} />,
-                                            // Using same list styling as Editor for consistency
-                                            ul: ({ ...props }) => <ul className="list-disc pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
-                                            ol: ({ ...props }) => <ol className="list-decimal pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
-                                            li: ({ ...props }) => <li className="pl-1" {...props} />,
-                                            blockquote: ({ ...props }) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-3 my-4 italic text-slate-700 rounded-r" {...props} />,
-
-                                            // Premium Tables (Synced with Editor)
-                                            table: ({ ...props }) => (
-                                                <div className="my-6 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-                                                    <table className="min-w-full divide-y divide-slate-200 border-collapse" {...props} />
+                                return sortedModules.map((module: any, idx: number) => (
+                                    <Collapsible key={module.id}>
+                                        <CollapsibleTrigger className="w-full">
+                                            <div className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg border border-slate-100 transition-colors">
+                                                <ChevronRight className="h-4 w-4 text-slate-400" />
+                                                <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 flex-shrink-0">
+                                                    {idx + 1}
                                                 </div>
-                                            ),
-                                            thead: ({ ...props }) => <thead className="bg-slate-50/80" {...props} />,
-                                            th: ({ ...props }) => <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-widest border-b border-slate-200" {...props} />,
-                                            td: ({ ...props }) => <td className="px-6 py-4 text-sm text-slate-600 border-b border-slate-100 last:border-b-0" {...props} />,
-                                            tr: ({ ...props }) => <tr className="hover:bg-slate-50/50 transition-colors even:bg-slate-50/30" {...props} />,
-
-                                            code({ inline, className, children, ...props }: any) {
-                                                const match = /language-(\w+)/.exec(className || '')
-                                                return !inline && match ? (
-                                                    <div className="rounded-lg overflow-hidden my-6 border border-slate-200 shadow-sm">
-                                                        <div className="bg-slate-800 text-slate-300 px-4 py-2 text-xs font-mono uppercase tracking-wider border-b border-slate-700 flex justify-between">
-                                                            <span>{match[1]}</span>
-                                                            <Lock className="h-3 w-3 opacity-50" />
-                                                        </div>
-                                                        <SyntaxHighlighter
-                                                            style={vscDarkPlus}
-                                                            language={match[1]}
-                                                            PreTag="div"
-                                                            customStyle={{ margin: 0, borderRadius: 0 }}
-                                                        >
-                                                            {String(children).replace(/\n$/, '')}
-                                                        </SyntaxHighlighter>
+                                                <div className="flex-1 text-left">
+                                                    <h5 className="font-medium text-slate-900">{module.title}</h5>
+                                                    <p className="text-xs text-slate-500 line-clamp-1">{module.description}</p>
+                                                </div>
+                                                {module.children?.length > 0 && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {module.children.length} topics
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                            <div className="pl-12 pr-3 py-2 space-y-1">
+                                                {module.children?.map((topic: any, tIdx: number) => (
+                                                    <div key={topic.id} className="p-2 text-sm text-slate-600 hover:bg-slate-50 rounded">
+                                                        {idx + 1}.{tIdx + 1} {topic.title}
                                                     </div>
-                                                ) : (
-                                                    <code className="bg-slate-100 text-indigo-600 px-1.5 py-0.5 rounded font-mono text-sm font-semibold" {...props}>
-                                                        {children}
-                                                    </code>
-                                                )
-                                            }
-                                        }}
-                                    >
-                                        {content.replace(/\n{3,}/g, (match) => {
-                                            return '\n\n' + '&nbsp;\n'.repeat(match.length - 2)
-                                        })}
-                                    </Markdown>
-                                </article>
-                            </div>
-                        )}
-                    </div>
+                                                ))}
+                                            </div>
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                ))
+                            })()}
+                            {(!course?.topics || course.topics.length === 0) && (
+                                <div className="text-center py-12 text-slate-400">
+                                    No syllabus available
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        {/* Sample Tab */}
+                        <TabsContent value="sample" className="p-8">
+                            {selectedTopic && content ? (
+                                <div>
+                                    <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Eye className="h-5 w-5 text-indigo-600" />
+                                        Sample Lesson: {selectedTopic.title}
+                                    </h4>
+                                    <article className="prose prose-slate prose-lg max-w-none bg-slate-50 p-6 rounded-lg border border-slate-100">
+                                        <Markdown
+                                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                                            components={{
+                                                h1: ({ ...props }) => <h1 className="text-3xl font-bold text-slate-900 mt-0 mb-4 pb-2 border-b" {...props} />,
+                                                h2: ({ ...props }) => <h2 className="text-2xl font-bold text-slate-800 mt-8 mb-4" {...props} />,
+                                                ul: ({ ...props }) => <ul className="list-disc pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
+                                                ol: ({ ...props }) => <ol className="list-decimal pl-5 space-y-2 mb-4 text-slate-700" {...props} />,
+                                                li: ({ ...props }) => <li className="pl-1" {...props} />,
+                                                blockquote: ({ ...props }) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-3 my-4 italic text-slate-700 rounded-r" {...props} />,
+                                                table: ({ ...props }) => (
+                                                    <div className="my-6 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="min-w-full divide-y divide-slate-200 border-collapse" {...props} />
+                                                    </div>
+                                                ),
+                                                thead: ({ ...props }) => <thead className="bg-slate-50/80" {...props} />,
+                                                th: ({ ...props }) => <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-widest border-b border-slate-200" {...props} />,
+                                                td: ({ ...props }) => <td className="px-6 py-4 text-sm text-slate-600 border-b border-slate-100 last:border-b-0" {...props} />,
+                                                tr: ({ ...props }) => <tr className="hover:bg-slate-50/50 transition-colors even:bg-slate-50/30" {...props} />,
+                                                code({ inline, className, children, ...props }: any) {
+                                                    const match = /language-(\w+)/.exec(className || '')
+                                                    return !inline && match ? (
+                                                        <div className="rounded-lg overflow-hidden my-6 border border-slate-200 shadow-sm">
+                                                            <div className="bg-slate-800 text-slate-300 px-4 py-2 text-xs font-mono uppercase tracking-wider border-b border-slate-700 flex justify-between">
+                                                                <span>{match[1]}</span>
+                                                                <Lock className="h-3 w-3 opacity-50" />
+                                                            </div>
+                                                            <SyntaxHighlighter
+                                                                style={vscDarkPlus}
+                                                                language={match[1]}
+                                                                PreTag="div"
+                                                                customStyle={{ margin: 0, borderRadius: 0 }}
+                                                            >
+                                                                {String(children).replace(/\n$/, '')}
+                                                            </SyntaxHighlighter>
+                                                        </div>
+                                                    ) : (
+                                                        <code className="bg-slate-100 text-indigo-600 px-1.5 py-0.5 rounded font-mono text-sm font-semibold" {...props}>
+                                                            {children}
+                                                        </code>
+                                                    )
+                                                }
+                                            }}
+                                        >
+                                            {content.replace(/\n{3,}/g, (match) => '\n\n' + '&nbsp;\n'.repeat(match.length - 2))}
+                                        </Markdown>
+                                    </article>
+                                </div>
+                            ) : (
+                                <div className="text-center py-20 text-slate-400">
+                                    <Eye className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                    <p>No sample content available for preview</p>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        {/* Exams Tab */}
+                        <TabsContent value="exams" className="p-8 space-y-4">
+                            {course?.exams?.length > 0 ? (
+                                course.exams.map((exam: any) => (
+                                    <div key={exam.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Badge className="bg-indigo-100 text-indigo-700">{exam.type || 'Exam'}</Badge>
+                                            <h5 className="font-semibold text-slate-900">{exam.title}</h5>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Questions:</span>
+                                                <span className="font-medium">{exam.questions?.length || 0}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Duration:</span>
+                                                <span className="font-medium">{exam.duration_minutes || 'N/A'}min</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Difficulty:</span>
+                                                <span className="font-medium">{exam.difficulty || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">Passing Score:</span>
+                                                <span className="font-medium">{exam.passing_score || 'N/A'}%</span>
+                                            </div>
+                                        </div>
+
+                                        {exam.questions?.[0] && (
+                                            <div className="mt-4 p-3 bg-slate-50 rounded border border-slate-100">
+                                                <p className="text-xs font-semibold text-slate-500 mb-2">SAMPLE QUESTION:</p>
+                                                <p className="text-sm text-slate-700">{exam.questions[0].question}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-20 text-slate-400">
+                                    <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                    <p>No exams included in this course</p>
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
                 </div>
             </div>
             {/* Confirmation Dialog */}
