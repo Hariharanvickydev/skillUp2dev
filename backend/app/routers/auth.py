@@ -76,6 +76,10 @@ def login(
             detail="Inactive user"
         )
     
+    # Update last login timestamp for activity tracking
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+    
     # Create access token
     access_token = auth.create_access_token(
         data={"sub": str(user.id), "role": user.role}

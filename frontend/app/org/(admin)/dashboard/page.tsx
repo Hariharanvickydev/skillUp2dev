@@ -27,6 +27,22 @@ interface DashboardStats {
         used: number;
         limit: number;
     };
+    storage_usage: {
+        used: number;
+        limit: number;
+    };
+    recent_exams: {
+        id: string;
+        title: string;
+        type: string;
+        exam_status: string;
+        created_at: string;
+    }[];
+    popular_courses: {
+        id: string;
+        title: string;
+        student_count: number;
+    }[];
 }
 
 interface OrgInfo {
@@ -197,7 +213,7 @@ export default function OrgDashboard() {
             {/* Charts & Limits */}
             <div className="grid gap-8 md:grid-cols-7 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 fill-mode-backwards">
                 {/* Activity Chart */}
-                <Card className="col-span-4 border-slate-200 shadow-sm overflow-hidden">
+                <Card className="col-span-7 border-slate-200 shadow-sm overflow-hidden">
                     <CardHeader className="border-b border-slate-100 bg-slate-50/50">
                         <CardTitle className="flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-indigo-600" />
@@ -254,9 +270,12 @@ export default function OrgDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+            </div>
 
+            {/* AI Usage, Alerts, Storage, Exams & Courses */}
+            <div className="grid gap-8 md:grid-cols-3 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-400 fill-mode-backwards">
                 {/* AI Usage & Alerts */}
-                <div className="col-span-3 space-y-8">
+                <div className="col-span-1 space-y-8">
                     {/* Alerts */}
                     <Card className="border-slate-200 shadow-sm overflow-hidden h-fit">
                         <CardHeader className="border-b border-slate-100 bg-slate-50/50">
@@ -363,7 +382,144 @@ export default function OrgDashboard() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Storage Usage */}
+                    <Card className="border-slate-200 shadow-sm overflow-hidden">
+                        <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-medium text-slate-700">Storage Usage</CardTitle>
+                                <span className="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md border border-slate-200">
+                                    {Math.round(((stats?.storage_usage.used || 0) / (stats?.storage_usage.limit || 1)) * 100)}%
+                                </span>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-slate-900">
+                                            {(stats?.storage_usage.used || 0).toFixed(2)} GB used
+                                        </span>
+                                        {(() => {
+                                            const usedGB = stats?.storage_usage.used || 0;
+                                            if (usedGB < 1 && usedGB > 0) {
+                                                if (usedGB < 0.001) {
+                                                    const usedKB = usedGB * 1024 * 1024;
+                                                    return (
+                                                        <span className="text-xs text-slate-500 mt-0.5">
+                                                            ({usedKB.toFixed(2)} KB)
+                                                        </span>
+                                                    );
+                                                } else {
+                                                    const usedMB = usedGB * 1024;
+                                                    return (
+                                                        <span className="text-xs text-slate-500 mt-0.5">
+                                                            ({usedMB.toFixed(2)} MB)
+                                                        </span>
+                                                    );
+                                                }
+                                            }
+                                            return null;
+                                        })()}
+                                    </div>
+                                    <span className="text-slate-500">{stats?.storage_usage.limit || 0} GB limit</span>
+                                </div>
+                                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-1000 ease-out rounded-full"
+                                        style={{ width: `${Math.min(100, ((stats?.storage_usage.used || 0) / (stats?.storage_usage.limit || 1)) * 100)}%` }}
+                                    ></div>
+                                </div>
+                                <p className="text-xs text-slate-500 leading-relaxed">
+                                    File storage for course materials and resources.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
+
+                {/* Recent Exams */}
+                <Card className="col-span-1 border-slate-200 shadow-sm overflow-hidden">
+                    <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                        <CardTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-green-600" />
+                            Recent Exams
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        {(!stats?.recent_exams || stats.recent_exams.length === 0) ? (
+                            <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm">
+                                <div className="p-4 bg-slate-50 rounded-full mb-3">
+                                    <FileText className="h-6 w-6 opacity-50" />
+                                </div>
+                                No exams created yet
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {stats.recent_exams.map((exam) => (
+                                    <div
+                                        key={exam.id}
+                                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                                        onClick={() => router.push(`/manage/exams/${exam.id}`)}
+                                    >
+                                        <div className="flex-1">
+                                            <p className="font-medium text-slate-900 text-sm">{exam.title}</p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {exam.type} • {exam.exam_status}
+                                            </p>
+                                        </div>
+                                        <span className="text-xs text-slate-400">
+                                            {new Date(exam.created_at).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Popular Courses */}
+                <Card className="col-span-1 border-slate-200 shadow-sm overflow-hidden">
+                    <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                        <CardTitle className="flex items-center gap-2">
+                            <BookOpen className="h-5 w-5 text-orange-600" />
+                            Popular Courses
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        {(!stats?.popular_courses || stats.popular_courses.length === 0) ? (
+                            <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm">
+                                <div className="p-4 bg-slate-50 rounded-full mb-3">
+                                    <BookOpen className="h-6 w-6 opacity-50" />
+                                </div>
+                                No course engagement data yet
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {stats.popular_courses.map((course, index) => (
+                                    <div
+                                        key={course.id}
+                                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                                        onClick={() => router.push(`/org/courses/${course.id}`)}
+                                    >
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white text-sm font-bold">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-medium text-slate-900 text-sm">{course.title}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-slate-600">
+                                            <Users className="h-4 w-4" />
+                                            <span className="text-sm font-semibold">{course.student_count}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Modals */}

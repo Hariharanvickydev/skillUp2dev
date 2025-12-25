@@ -52,8 +52,8 @@ class Organization(Base):
     max_students = Column(Integer, default=50)
     max_teachers = Column(Integer, default=5)
     max_courses = Column(Integer, default=5)
-    storage_limit_gb = Column(Integer, default=1)
-    storage_used_gb = Column(Integer, default=0)
+    storage_limit_gb = Column(Integer, default=50)  # Changed to Float to support decimals
+    storage_used_gb = Column(Integer, default=0)  # Changed to Float to support decimals
     ai_credits_limit = Column(Integer, default=1000)
     ai_credits_used = Column(Integer, default=0)
 

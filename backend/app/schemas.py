@@ -99,8 +99,8 @@ class Organization(OrganizationBase):
     max_students: int
     max_teachers: int
     max_courses: int
-    storage_limit_gb: int
-    storage_used_gb: int
+    storage_limit_gb: float  # Changed to float to support decimal values
+    storage_used_gb: float   # Changed to float to support decimal values
     ai_credits_limit: int
     ai_credits_used: int
 

@@ -481,6 +481,7 @@ def publish_course(
     
     # All validations passed, publish the course and all modules
     course.status = "PUBLISHED"
+    course.is_published = True  # BUG FIX: Set is_published field for dashboard stats
     
     # Publish all parent topics (modules)
     for topic in topics:
@@ -553,6 +554,7 @@ def publish_module(
     # This allows consumers to see courses with some content ready
     if course.status == "DRAFT" or course.status == "COMPLETED":
         course.status = "PARTIALLY_PUBLISHED"
+        course.is_published = True  # Make partially published courses visible in dashboard
     
     db.commit()
     db.refresh(module)

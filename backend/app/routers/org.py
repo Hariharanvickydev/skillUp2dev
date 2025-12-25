@@ -171,6 +171,50 @@ def get_org_dashboard_stats(
     ai_credits_used = org.ai_credits_used if org else 0
     ai_credits_limit = org.ai_credits_limit if org else 0
     
+    # Storage Usage
+    storage_used = org.storage_used_gb if org else 0
+    storage_limit = org.storage_limit_gb if org else 1
+    
+    # Recent Exams (Last 5)
+    recent_exams_query = db.query(models.Exam).join(
+        models.Course, models.Exam.course_id == models.Course.id
+    ).filter(
+        models.Course.organization_id == org_id
+    ).order_by(models.Exam.created_at.desc()).limit(5)
+    
+    recent_exams = []
+    for exam in recent_exams_query.all():
+        recent_exams.append({
+            "id": str(exam.id),
+            "title": exam.title or f"{exam.type} Exam",
+            "type": exam.type,
+            "exam_status": exam.exam_status,
+            "created_at": exam.created_at
+        })
+    
+    # Popular Courses (Top 5 by student enrollment via UserProgress)
+    from sqlalchemy import func as sql_func
+    popular_courses_query = db.query(
+        models.Course.id,
+        models.Course.title,
+        sql_func.count(models.UserProgress.user_id.distinct()).label('student_count')
+    ).join(
+        models.UserProgress, models.Course.id == models.UserProgress.course_id
+    ).filter(
+        models.Course.organization_id == org_id,
+        models.Course.is_published == True
+    ).group_by(models.Course.id, models.Course.title).order_by(
+        sql_func.count(models.UserProgress.user_id.distinct()).desc()
+    ).limit(5)
+    
+    popular_courses = []
+    for course_id, title, count in popular_courses_query.all():
+        popular_courses.append({
+            "id": str(course_id),
+            "title": title,
+            "student_count": count
+        })
+    
     return {
         "total_students": total_students,
         "total_teachers": total_teachers,
@@ -183,7 +227,13 @@ def get_org_dashboard_stats(
         "ai_usage": {
             "used": ai_credits_used,
             "limit": ai_credits_limit
-        }
+        },
+        "storage_usage": {
+            "used": storage_used,
+            "limit": storage_limit
+        },
+        "recent_exams": recent_exams,
+        "popular_courses": popular_courses
     }
 
 @router.get("/dashboard/approvals", response_model=List[Dict[str, Any]])
