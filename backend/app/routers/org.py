@@ -175,15 +175,22 @@ def get_org_dashboard_stats(
     storage_used = org.storage_used_gb if org else 0
     storage_limit = org.storage_limit_gb if org else 1
     
-    # Recent Exams (Last 5)
-    recent_exams_query = db.query(models.Exam).join(
+    # Recent Exams (Last 5 exams that have been attempted by students)
+    recent_exams_query = db.query(
+        models.Exam,
+        func.max(models.ExamAttempt.started_at).label('last_attempt')
+    ).join(
         models.Course, models.Exam.course_id == models.Course.id
+    ).join(
+        models.ExamAttempt, models.Exam.id == models.ExamAttempt.exam_id
     ).filter(
         models.Course.organization_id == org_id
-    ).order_by(models.Exam.created_at.desc()).limit(5)
+    ).group_by(models.Exam.id).order_by(
+        func.max(models.ExamAttempt.started_at).desc()
+    ).limit(5)
     
     recent_exams = []
-    for exam in recent_exams_query.all():
+    for exam, last_attempt in recent_exams_query.all():
         recent_exams.append({
             "id": str(exam.id),
             "title": exam.title or f"{exam.type} Exam",

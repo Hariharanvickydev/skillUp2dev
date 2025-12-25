@@ -198,8 +198,8 @@ function CourseCard({ course, router, onAssign }: { course: any, router: any, on
 
 
                 <div className="absolute bottom-4 left-6">
-                    <Badge variant={course.status === 'PUBLISHED' ? 'default' : 'secondary'} className={`shadow-sm backdrop-blur-md ${course.status === 'PUBLISHED' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-white/90 text-slate-800 hover:bg-white'}`}>
-                        {course.status === 'PUBLISHED' ? 'Live Course' : course.status === 'PENDING_APPROVAL' ? 'Pending Review' : 'Draft'}
+                    <Badge variant={(course.status === 'PUBLISHED' || course.status === 'PARTIALLY_PUBLISHED') ? 'default' : 'secondary'} className={`shadow-sm backdrop-blur-md ${(course.status === 'PUBLISHED' || course.status === 'PARTIALLY_PUBLISHED') ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-white/90 text-slate-800 hover:bg-white'}`}>
+                        {course.status === 'PUBLISHED' ? 'Live Course' : course.status === 'PARTIALLY_PUBLISHED' ? 'Partially Published' : course.status === 'PENDING_APPROVAL' ? 'Pending Review' : 'Draft'}
                     </Badge>
                 </div>
             </div>
