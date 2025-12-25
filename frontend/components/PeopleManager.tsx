@@ -551,9 +551,9 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                                         </div>
                                     </TableCell>
                                     <TableCell className="px-6 py-5">
-                                        <div className="flex flex-col gap-1.5 items-start max-w-[200px]">
+                                        <div className="flex flex-col gap-1 items-start max-w-[200px]">
                                             {user.group ? (
-                                                <div className="flex flex-wrap items-center gap-1 text-xs">
+                                                <div className="flex flex-wrap items-center gap-1 text-xs text-slate-600">
                                                     {(() => {
                                                         const parts = [];
                                                         let current = user.group;
@@ -562,23 +562,19 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                                                             current = current.parent;
                                                         }
                                                         return parts.map((part, i) => (
-                                                            <div key={part.id} className="flex items-center gap-1">
+                                                            <span key={part.id} className="flex items-center gap-1">
                                                                 {i > 0 && <span className="text-slate-300">/</span>}
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className={`bg-white border-slate-200 shadow-sm font-medium py-0 px-1.5 text-[10px] ${i === parts.length - 1 ? 'text-slate-700 border-slate-300' : 'text-slate-500'
-                                                                        }`}
-                                                                >
+                                                                <span className={i === parts.length - 1 ? 'font-medium text-slate-700' : 'text-slate-500'}>
                                                                     {part.name}
-                                                                </Badge>
-                                                            </div>
+                                                                </span>
+                                                            </span>
                                                         ))
                                                     })()}
                                                 </div>
                                             ) : (
-                                                <Badge variant="outline" className="bg-white border-slate-200 text-slate-700 shadow-sm font-medium py-0.5 px-2 text-xs">
+                                                <span className="text-sm text-slate-600">
                                                     {user.department_name || 'General'}
-                                                </Badge>
+                                                </span>
                                             )}
                                             {user.year && (
                                                 <div className="text-[10px] font-semibold text-slate-400 pl-0.5">
