@@ -462,9 +462,19 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                                 if (filters.status === 'active' && !user.is_active) return false;
                                 if (filters.status === 'inactive' && user.is_active) return false;
 
-                                // Department filter (by group ID)
+                                // Department filter (hierarchical - matches selected group or any parent)
                                 if (filters.department !== 'all') {
-                                    if (user.org_group_id !== filters.department) return false;
+                                    // Check if user's group matches or is a descendant of selected group
+                                    let currentGroup = user.group;
+                                    let found = false;
+                                    while (currentGroup) {
+                                        if (currentGroup.id === filters.department) {
+                                            found = true;
+                                            break;
+                                        }
+                                        currentGroup = currentGroup.parent;
+                                    }
+                                    if (!found) return false;
                                 }
 
                                 // Last Login filter
