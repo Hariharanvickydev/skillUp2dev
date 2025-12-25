@@ -412,7 +412,6 @@ function UserList({ orgId, role, level1Label, level2Label, apiMode }: { orgId: s
                         onChange={(id, name) => setFilters({ ...filters, department: id || 'all' })}
                         labels={{ level1: level1Label, level2: level2Label }}
                         role={role}
-                        className="h-10 rounded-xl border-slate-200 min-w-[180px]"
                     />
                 </div>
                 {/* Last Login Filter */}
