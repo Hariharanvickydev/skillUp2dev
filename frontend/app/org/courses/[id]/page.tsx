@@ -156,7 +156,7 @@ export default function OrgCourseEditorPage() {
     }, [id])
 
     const handleViewContent = (topic: any) => {
-        router.push(`/ org / courses / ${id} / topic / ${topic.id} `)
+        router.push(`/org/courses/${id}/topic/${topic.id}`)
     }
 
     const handleEditTopic = async () => {

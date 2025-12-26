@@ -172,10 +172,11 @@ def import_course_to_org(
             )
             db.add(new_exam)
 
-    # 6. Copy Important Questions (IQs)
+    # 6. Copy Important Questions (IQs) - Only PUBLISHED questions
     original_iqs = db.query(models.ImportantQuestions).filter(
         (models.ImportantQuestions.course_id == course_id) |
-        (models.ImportantQuestions.module_id.in_(topic_map.keys()))
+        (models.ImportantQuestions.module_id.in_(topic_map.keys())),
+        models.ImportantQuestions.status == models.QuestionStatus.PUBLISHED
     ).all()
     
     for iq in original_iqs:
@@ -191,7 +192,9 @@ def import_course_to_org(
                 title=iq.title,
                 course_id=new_course.id,
                 module_id=new_module_id,
-                content=iq.content
+                content=iq.content,
+                source_question_id=iq.id,
+                created_by_user_id=current_user.id
             )
             db.add(new_iq)
             
@@ -339,9 +342,12 @@ def get_sync_status(
                     "message": "Update available from library"
                 })
 
-    # 3. Check for Important Question Updates
+    # 3. Check for Important Question Updates - Only PUBLISHED questions
     if org_course.parent_course_id:
-        lib_questions = db.query(models.ImportantQuestions).filter(models.ImportantQuestions.course_id == org_course.parent_course_id).all()
+        lib_questions = db.query(models.ImportantQuestions).filter(
+            models.ImportantQuestions.course_id == org_course.parent_course_id,
+            models.ImportantQuestions.status == models.QuestionStatus.PUBLISHED
+        ).all()
         # Fetch local related questions
         local_questions = db.query(models.ImportantQuestions).filter(
             models.ImportantQuestions.course_id == course_id, 
@@ -417,7 +423,10 @@ def sync_course_content(
 
         # --- IMPORTANT QUESTION SYNC ---
         if item.library_question_id:
-            lib_quest = db.query(models.ImportantQuestions).filter(models.ImportantQuestions.id == item.library_question_id).first()
+            lib_quest = db.query(models.ImportantQuestions).filter(
+                models.ImportantQuestions.id == item.library_question_id,
+                models.ImportantQuestions.status == models.QuestionStatus.PUBLISHED
+            ).first()
             if not lib_quest:
                 continue
 
@@ -528,3 +537,16 @@ def sync_course_content(
                 
     db.commit()
     return {"message": "Sync complete", "synced_count": len(synced_topics)}
+
+@router.delete("/questions/cloned")
+def delete_all_cloned_questions(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_super_admin)
+):
+    """Delete all cloned questions (questions with source_question_id set)"""
+    deleted_count = db.query(models.ImportantQuestions).filter(
+        models.ImportantQuestions.source_question_id.isnot(None)
+    ).delete(synchronize_session=False)
+    
+    db.commit()
+    return {"message": f"Deleted {deleted_count} cloned questions", "count": deleted_count}
