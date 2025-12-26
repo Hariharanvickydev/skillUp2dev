@@ -146,7 +146,7 @@ export default function HODDashboardPage() {
                             </div>
                             <div>
                                 <h3 className="text-lg font-bold text-orange-900">You have {stats.pending_approvals} items pending review</h3>
-                                <p className="text-orange-700">Review and approve content in the dedicated approval queue.</p>
+                                <p className="text-orange-700">Review and approve questions and content in the dedicated approval queue.</p>
                             </div>
                         </div>
                         <Button

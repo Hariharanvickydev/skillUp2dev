@@ -332,7 +332,7 @@ export default function OrgDashboard() {
                                                         </span>
                                                     </div>
                                                     <p className="mt-1">
-                                                        There are {stats?.pending_approvals} topics waiting for approval.
+                                                        There are {stats?.pending_approvals} items waiting for approval.
                                                     </p>
                                                 </div>
                                             </div>

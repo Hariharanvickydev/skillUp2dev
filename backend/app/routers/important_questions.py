@@ -70,13 +70,20 @@ def list_important_questions(
         query = query.filter(models.ImportantQuestions.module_id == module_id)
         
     # Filtering Logic based on Roles
+    # Filtering Logic based on Roles
     if current_user.role == models.UserRole.STUDENT:
-        query = query.filter(models.ImportantQuestions.status == models.QuestionStatus.PUBLISHED.value)
+        # Show if public (even if status is DRAFT due to pending edits)
+        query = query.filter(models.ImportantQuestions.is_public == True)
+        
+        questions = query.all()
+        # Versioning: Serve published_content
+        for q in questions:
+            if q.published_content:
+                q.content = q.published_content
+        return questions
+
     elif current_user.role == models.UserRole.TEACHER:
-        # Teachers see: PUBLISHED (all) OR their own questions (DRAFT/PENDING)
-        # Or should they see all? Let's say they see all for collaboration, but strictly speaking maybe only theirs?
-        # For simplicity and collaboration, Teachers see ALL questions, but status visibility differs?
-        # Usually Teachers can see everything in the course they teach.
+        # Teachers see all for collaboration
         pass 
         
     return query.all()
@@ -99,10 +106,14 @@ def get_important_question(
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
         
-    # Student check
-    if current_user.role == models.UserRole.STUDENT and not question.is_public:
-         raise HTTPException(status_code=403, detail="Question not available")
-         
+    # Student check - Serve PUBLISHED content
+    if current_user.role == models.UserRole.STUDENT:
+        if not question.is_public:
+             raise HTTPException(status_code=403, detail="Question not available")
+        # Serve published content
+        if question.published_content:
+            question.content = question.published_content
+
     return question
 
 @router.put("/{question_id}", response_model=schemas.ImportantQuestion)
@@ -127,6 +138,13 @@ def update_important_question(
     data = update_data.dict(exclude_unset=True)
     for key, value in data.items():
         setattr(question, key, value)
+    
+    # CONTENT VERSIONING: If editing content, reset status to DRAFT to trigger re-approval
+    # DO NOT unpublish - keep old version visible to students if it was public
+    if 'content' in data:
+         if question.status in [models.QuestionStatus.PUBLISHED.value, models.QuestionStatus.APPROVED.value]:
+             question.status = models.QuestionStatus.DRAFT.value
+             # question.is_public stays as is (True), showing OLD published_content to students
         
     db.commit()
     db.refresh(question)
@@ -193,7 +211,7 @@ def publish_important_question(
     question_id: UUID,
     status_data: dict, # { "is_public": boolean }
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Toggle publish status"""
     verify_course_access(course_id, db, current_user, require_write=True)
@@ -207,6 +225,13 @@ def publish_important_question(
         raise HTTPException(status_code=404, detail="Question not found")
         
     question.is_public = status_data.get("is_public", False)
+    
+    if question.is_public:
+        # If toggling ON, ensure published_content is set
+        if not question.published_content:
+            question.published_content = question.content
+        question.status = models.QuestionStatus.PUBLISHED.value
+        
     db.commit()
     
     return {"message": "Status updated", "is_public": question.is_public}
@@ -255,6 +280,9 @@ def approve_question(
         
     question.status = models.QuestionStatus.PUBLISHED.value
     question.is_public = True # Sync legacy field
+    # Sync Content: Copy Draft -> Published
+    question.published_content = question.content
+    
     db.commit()
     return {"message": "Question approved and published", "status": question.status}
 

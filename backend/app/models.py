@@ -320,7 +320,8 @@ class ImportantQuestions(Base):
     course_id = Column(Uuid(as_uuid=True), ForeignKey("courses.id"), nullable=False)
     module_id = Column(Uuid(as_uuid=True), ForeignKey("topics.id"), nullable=True)
     created_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    content = Column(JSON, nullable=False) # Array of Q&A
+    content = Column(JSON, nullable=False) # Array of Q&A (Draft)
+    published_content = Column(JSON, nullable=True) # Array of Q&A (Live/Approved)
     is_public = Column(Boolean, default=False)
     status = Column(String, default=QuestionStatus.DRAFT.value) # DRAFT, PENDING_APPROVAL, PUBLISHED
     created_at = Column(DateTime, server_default=func.now())

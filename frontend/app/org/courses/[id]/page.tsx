@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { getCourse, addTopic, updateTopic, deleteTopic, generateTopics, approveTopic, requestTopicApproval, rejectTopic, republishModule, getSyncStatus, syncCourse, submitCourse, approveCourseReq, rejectCourse, createImportantQuestion, getImportantQuestions, deleteImportantQuestion, updateImportantQuestion, bulkImportImportantQuestions, publishImportantQuestion, requestImportantQuestionApproval, approveImportantQuestion, rejectImportantQuestion } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { ArrowLeft, Plus, RefreshCw, Pencil, Trash2, CheckCircle, Loader2, FileText, Sparkles, Layers, Wand2, Clock, GitCompare, ExternalLink, Copy, Save, Eye, Edit3, ChevronDown, ListCheck, HelpCircle, Edit, BookOpen, Upload, Download, Share2, XCircle, Send, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
@@ -19,8 +20,17 @@ import { useAuth } from "@/contexts/AuthContext"
 export default function OrgCourseEditorPage() {
     const params = useParams()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const id = params.id as string
     const { user } = useAuth()
+
+    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "syllabus")
+
+    useEffect(() => {
+        const tab = searchParams.get('tab')
+        if (tab) setActiveTab(tab)
+    }, [searchParams])
+
 
     const [course, setCourse] = useState<any>(null)
     const [topics, setTopics] = useState<any[]>([])
@@ -465,12 +475,16 @@ export default function OrgCourseEditorPage() {
         }
     }
 
-    const getStatusBadge = (status: string) => {
+    const getStatusBadge = (status: string, is_public?: boolean) => {
         switch (status) {
-            case 'DRAFT': return <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">Draft</Badge>
+            case 'DRAFT':
+                if (is_public) return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">Draft (Live)</Badge>
+                return <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">Draft</Badge>
             case 'PENDING_APPROVAL': return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 animate-pulse">Pending Approval</Badge>
             case 'CHANGES_REQUESTED': return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">Changes Requested</Badge>
-            case 'PUBLISHED': return <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">Published</Badge>
+            case 'PUBLISHED':
+                if (is_public === false) return <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200">Approved (Hidden)</Badge>
+                return <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">Published</Badge>
             default: return <Badge variant="outline" className="bg-slate-100 text-slate-600">Draft</Badge>
         }
     }
@@ -621,7 +635,7 @@ export default function OrgCourseEditorPage() {
                 </div>
             </div>
 
-            <Tabs defaultValue="syllabus" className="w-full space-y-8">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-8">
                 <TabsList className="flex w-full bg-slate-100 p-1 rounded-xl">
                     <TabsTrigger value="syllabus" className="flex-1 rounded-lg px-4 py-2 data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
                         <Layers className="h-4 w-4 mr-2" /> Syllabus & Content
@@ -951,7 +965,7 @@ export default function OrgCourseEditorPage() {
                                         {showPreviewAnswers ? "Visible" : "Hidden"}
                                     </Button>
                                 </div>
-                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'DEPT_HEAD') && (
                                     <Button
                                         onClick={() => {
                                             setEditingQuestion(null)
@@ -964,7 +978,7 @@ export default function OrgCourseEditorPage() {
                                         Add Question
                                     </Button>
                                 )}
-                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'DEPT_HEAD') && (
                                     <Button
                                         onClick={() => setIsBulkImportDialogOpen(true)}
                                         variant="outline"
@@ -1033,7 +1047,7 @@ export default function OrgCourseEditorPage() {
                                                                 <div className="flex-1 space-y-3">
                                                                     <div className="flex justify-between items-start">
                                                                         <div className="flex items-center gap-2">
-                                                                            {getStatusBadge(q.status || 'DRAFT')}
+                                                                            {getStatusBadge(q.status || 'DRAFT', q.is_public)}
                                                                             <h4 className="font-medium text-slate-900">{q.title}</h4>
                                                                         </div>
                                                                         <div className="flex gap-2 items-center">
@@ -1049,7 +1063,7 @@ export default function OrgCourseEditorPage() {
                                                                             {/* Action Buttons */}
                                                                             <div className="flex items-center gap-1 ml-2">
                                                                                 {/* Teacher Actions: Draft/ChangesRequested -> Request Approval */}
-                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') &&
+                                                                                {(user?.role === 'TEACHER') &&
                                                                                     (q.status === 'DRAFT' || q.status === 'CHANGES_REQUESTED' || !q.status) && (
                                                                                         <Button size="icon" variant="ghost" className="h-7 w-7 text-indigo-600" onClick={() => handleRequestApproval(q)} title="Request Approval">
                                                                                             <Send className="h-3.5 w-3.5" />
@@ -1069,15 +1083,29 @@ export default function OrgCourseEditorPage() {
                                                                                         </>
                                                                                     )}
 
-                                                                                {/* Publish Toggle (Legacy/Admin) */}
-                                                                                {(user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && q.status === 'PUBLISHED' && (
-                                                                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handlePublishToggle(q)} title={q.is_public ? "Unpublish" : "Publish"}>
-                                                                                        {q.is_public ? <EyeOff className="h-3.5 w-3.5 text-slate-400" /> : <Eye className="h-3.5 w-3.5 text-emerald-600" />}
-                                                                                    </Button>
-                                                                                )}
+                                                                                {/* Publish Toggle (Admin/HOD - Direct Publish for DRAFT/PUBLISHED) */}
+                                                                                {(user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'DEPT_HEAD') &&
+                                                                                    (q.status === 'PUBLISHED' || q.status === 'DRAFT' || q.status === 'CHANGES_REQUESTED') && (
+                                                                                        q.status === 'PUBLISHED' ? (
+                                                                                            <div className="flex items-center gap-2 px-2" title={q.is_public ? "Unpublish" : "Publish"}>
+                                                                                                <Switch
+                                                                                                    checked={q.is_public}
+                                                                                                    onCheckedChange={() => handlePublishToggle(q)}
+                                                                                                    className="data-[state=checked]:bg-emerald-600"
+                                                                                                />
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
+                                                                                                // For Drafts, we approve directly to Publish
+                                                                                                handleApprove(q);
+                                                                                            }} title="Publish Directly">
+                                                                                                <Eye className="h-3.5 w-3.5 text-slate-400 hover:text-emerald-600" />
+                                                                                            </Button>
+                                                                                        )
+                                                                                    )}
 
                                                                                 {/* Edit Button */}
-                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'DEPT_HEAD') && (
                                                                                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
                                                                                         setEditingQuestion(q)
                                                                                         setIsQuestionDialogOpen(true)
@@ -1087,7 +1115,7 @@ export default function OrgCourseEditorPage() {
                                                                                 )}
 
                                                                                 {/* Delete Button */}
-                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                                                                {(user?.role === 'TEACHER' || user?.role === 'ORG_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'DEPT_HEAD') && (
                                                                                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
                                                                                         setQuestionToDelete(q)
                                                                                         setIsDeleteQuestionDialogOpen(true)

@@ -123,10 +123,17 @@ def get_org_dashboard_stats(
     # Using the scoped course_query which is already correct for both HOD and Org Admin
     course_ids = [c.id for c in course_query.all()]
     if course_ids:
-        pending_approvals = db.query(models.Topic).filter(
+        pending_topic_approvals = db.query(models.Topic).filter(
             models.Topic.course_id.in_(course_ids),
             models.Topic.status == "PENDING_APPROVAL"
         ).count()
+        
+        pending_question_approvals = db.query(models.ImportantQuestions).filter(
+            models.ImportantQuestions.course_id.in_(course_ids),
+            models.ImportantQuestions.status == models.QuestionStatus.PENDING_APPROVAL.value
+        ).count()
+        
+        pending_approvals = pending_topic_approvals + pending_question_approvals
 
     # Exams (Module exams)
     exam_query = db.query(models.Exam).join(
@@ -321,7 +328,19 @@ def get_pending_approvals(
         models.Topic.status == "PENDING_APPROVAL"
     ).all()
 
+    # 3. Get Questions with Eager Loading
+    questions = db.query(models.ImportantQuestions).options(
+        joinedload(models.ImportantQuestions.course).joinedload(models.Course.assigned_teacher).joinedload(models.User.group),
+        joinedload(models.ImportantQuestions.course).joinedload(models.Course.assignees).joinedload(models.User.group),
+        joinedload(models.ImportantQuestions.course).joinedload(models.Course.creator).joinedload(models.User.group)
+    ).filter(
+        models.ImportantQuestions.course_id.in_(course_ids),
+        models.ImportantQuestions.status == models.QuestionStatus.PENDING_APPROVAL.value
+    ).all()
+
     result = []
+    
+    # Process Topics
     for topic in topics:
         # Get Teacher Name & Department/Group
         teacher_name = "Unknown"
@@ -329,11 +348,8 @@ def get_pending_approvals(
         group_id = None
         
         teacher = topic.course.assigned_teacher
-        # Fallback to assignees if no single assigned teacher
         if not teacher and topic.course.assignees:
-            teacher = topic.course.assignees[0] # Take the first assignee as representative
-        
-        # Fallback to creator
+            teacher = topic.course.assignees[0]
         if not teacher:
             teacher = topic.course.creator
 
@@ -346,12 +362,49 @@ def get_pending_approvals(
         result.append({
             "id": str(topic.id),
             "title": topic.title,
+            "type": "TOPIC",
             "course_id": str(topic.course_id),
             "course_title": topic.course.title,
             "teacher_name": teacher_name,
             "department_name": group_name,
             "department_id": group_id,
             "created_at": topic.created_at
+        })
+        
+    # Process Questions
+    for q in questions:
+        teacher_name = "Unknown"
+        group_name = "Department"
+        group_id = None
+        
+        # Priority: Created By > Assigned Teacher > Creator
+        # Questions have created_by_user_id
+        creator = db.query(models.User).filter(models.User.id == q.created_by_user_id).first()
+        if creator:
+            teacher = creator
+        else:
+             teacher = q.course.assigned_teacher
+             if not teacher and q.course.assignees:
+                 teacher = q.course.assignees[0]
+             if not teacher:
+                 teacher = q.course.creator
+
+        if teacher:
+            teacher_name = teacher.full_name
+            if teacher.group:
+                group_name = teacher.group.name
+                group_id = str(teacher.group.id)
+                
+        result.append({
+            "id": str(q.id),
+            "title": q.title,
+            "type": "QUESTION",
+            "course_id": str(q.course_id),
+            "course_title": q.course.title,
+            "teacher_name": teacher_name,
+            "department_name": group_name,
+            "department_id": group_id,
+            "created_at": q.created_at
         })
         
     return result
